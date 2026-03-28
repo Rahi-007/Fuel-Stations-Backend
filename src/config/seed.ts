@@ -1,5 +1,5 @@
 import mikroOrmConfig from "./mikro-orm.config";
-import { UserSchema } from "../auth/entites/user.entity";
+import { UserSchema } from "../auth/entity/user.entity";
 import { Role, UserStatus } from "../utils/enums";
 import * as bcrypt from "bcrypt";
 import * as dotenv from "dotenv";
@@ -48,7 +48,9 @@ export async function runSeeding(refresh = true) {
 
     // Seed Admin User (only if not exists)
     console.log("👤 Seeding users...");
-    let adminUser = await em.findOne(UserSchema, { email: "admin@example.com" });
+    let adminUser = await em.findOne(UserSchema, {
+      email: "admin@example.com",
+    });
     if (!adminUser) {
       const hashedPassword = await bcrypt.hash("admin123", 12);
 
@@ -69,7 +71,9 @@ export async function runSeeding(refresh = true) {
     }
 
     // Seed Regular User (only if not exists)
-    let regularUser = await em.findOne(UserSchema, { email: "user@example.com" });
+    let regularUser = await em.findOne(UserSchema, {
+      email: "user@example.com",
+    });
     if (!regularUser) {
       const hashedPassword = await bcrypt.hash("user123", 12);
 

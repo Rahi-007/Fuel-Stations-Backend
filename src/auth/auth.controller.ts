@@ -25,7 +25,7 @@ import { ApiBearerAuth, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 import { Roles } from "./decorators/roles.decorator";
 import { RolesGuard } from "./guards/roles.guard";
-import { IUser } from "./entites/user.entity";
+import { IUser } from "./entity/user.entity";
 
 @Controller("auth")
 export class AuthController {
@@ -161,7 +161,9 @@ export class AuthController {
   })
   @ApiResponse({ status: 409, description: "Email or phone already exists" })
   @ApiResponse({ status: 500, description: "Internal server error" })
-  async register(@Body() createUserDto: CreateUserDto): Promise<LoginResponseDto> {
+  async register(
+    @Body() createUserDto: CreateUserDto
+  ): Promise<LoginResponseDto> {
     try {
       const newUser = await this.authService.create(createUserDto);
       const loggedInUser = await this.authService.updateLastLoggedIn(newUser);
@@ -262,7 +264,7 @@ export class AuthController {
       );
     }
   }
-  
+
   private buildUserResponse(user: IUser): UserRes {
     return {
       id: user.id,
