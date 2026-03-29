@@ -1,14 +1,27 @@
-import { Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from "@nestjs/common";
 import { EntityManager, FilterQuery } from "@mikro-orm/core";
 import axios, { AxiosError } from "axios";
 import { StationSchema, type IStation } from "./station.entity";
 import { extractAdminFromOsmTags } from "./osm-admin.util";
-import { DivisionSchema, type IDivision } from "../location/entity/division.entity";
-import { DistrictSchema, type IDistrict } from "../location/entity/district.entity";
+import {
+  DivisionSchema,
+  type IDivision,
+} from "../location/entity/division.entity";
+import {
+  DistrictSchema,
+  type IDistrict,
+} from "../location/entity/district.entity";
 import {
   SubDistrictSchema,
   type ISubDistrict,
 } from "../location/entity/subDistrict.entity";
+import { UpdateStationDto } from "./station.dto";
 
 /** Public instances — primary is often busy; fallbacks improve reliability. */
 const OVERPASS_INTERPRETERS = [
@@ -148,8 +161,13 @@ out center;`;
           const snippet = ax.response?.data
             ? String(ax.response.data).slice(0, 200)
             : "";
-          attemptsLog.push(`${url} (${ax.message}${status ? ` ${status}` : ""})`);
-          this.logger.warn(`Overpass request failed: ${attemptsLog.at(-1)}`, snippet);
+          attemptsLog.push(
+            `${url} (${ax.message}${status ? ` ${status}` : ""})`
+          );
+          this.logger.warn(
+            `Overpass request failed: ${attemptsLog.at(-1)}`,
+            snippet
+          );
 
           if (this.isOverpassRetryable(ax) && attempt === 0) {
             await new Promise((r) => setTimeout(r, 1_000));
@@ -245,8 +263,15 @@ out center;`;
     district: IDistrict | null;
     subDistrict: ISubDistrict | null;
   }> {
-    const division = await this.resolveDivisionForOsm(s.division, caches.divisions);
-    const district = await this.resolveDistrictForOsm(division, s.district, caches.districts);
+    const division = await this.resolveDivisionForOsm(
+      s.division,
+      caches.divisions
+    );
+    const district = await this.resolveDistrictForOsm(
+      division,
+      s.district,
+      caches.districts
+    );
     const subDistrict = await this.resolveSubDistrictForOsm(
       district,
       s.subDistrict,
@@ -282,7 +307,8 @@ out center;`;
     };
 
     for (const s of list) {
-      const { division, district, subDistrict } = await this.resolveAdminRelations(s, caches);
+      const { division, district, subDistrict } =
+        await this.resolveAdminRelations(s, caches);
       const ref = buildOsmRef(s.osmType, s.osmId);
       const row = byRef.get(ref);
       if (row) {
@@ -376,26 +402,149 @@ out center;`;
       subDistrict?: string;
       village?: string;
     },
-    limit: number
+    params: {
+      page: number;
+      limit: number;
+    }
   ) {
     const cond: FilterQuery<IStation> = {};
+
     const v = (x?: string) => x?.trim();
+
     const div = v(filters.division);
     const dist = v(filters.district);
     const sub = v(filters.subDistrict);
     const vil = v(filters.village);
+
     if (div) cond.division = { name: { $ilike: `%${div}%` } };
     if (dist) cond.district = { name: { $ilike: `%${dist}%` } };
     if (sub) cond.subDistrict = { name: { $ilike: `%${sub}%` } };
     if (vil) cond.village = { $ilike: `%${vil}%` };
 
+    const limit = Math.min(Math.max(params.limit, 1), 500);
+    const offset = (params.page - 1) * limit;
+
+    // total count
+    const totalRows = await this.em.count(StationSchema, cond);
+
     const rows = await this.em.find(StationSchema, cond, {
-      limit: Math.min(Math.max(limit, 1), 500),
+      limit,
+      offset,
       orderBy: { id: "DESC" },
       populate: ["division", "district", "subDistrict"] as const,
     });
 
-    return rows.map((r) => this.stationRowToResponse(r));
+    return {
+      data: rows.map((r) => this.stationRowToResponse(r)),
+      totalRows,
+      page: params.page,
+      limit,
+    };
+  }
+  async update(id: number, dto: UpdateStationDto): Promise<IStation> {
+    const row = await this.em.findOne(
+      StationSchema,
+      { id },
+      {
+        populate: ["division", "district", "subDistrict"] as const,
+      }
+    );
+
+    if (!row) {
+      throw new NotFoundException(`Station with ID ${id} not found`);
+    }
+
+    // ✅ Division
+    if (dto.divisionId !== undefined) {
+      if (dto.divisionId === null) {
+        row.division = null;
+      } else if (dto.divisionId !== row.division?.id) {
+        const division = await this.em.findOne(DivisionSchema, {
+          id: dto.divisionId,
+        });
+
+        if (!division) {
+          throw new NotFoundException(
+            `Division with ID ${dto.divisionId} not found`
+          );
+        }
+
+        row.division = division;
+      }
+    }
+
+    // ✅ District
+    if (dto.districtId !== undefined) {
+      if (dto.districtId === null) {
+        row.district = null;
+      } else if (dto.districtId !== row.district?.id) {
+        const district = await this.em.findOne(DistrictSchema, {
+          id: dto.districtId,
+        });
+
+        if (!district) {
+          throw new NotFoundException(
+            `District with ID ${dto.districtId} not found`
+          );
+        }
+
+        row.district = district;
+      }
+    }
+
+    // ✅ SubDistrict
+    if (dto.subDistrictId !== undefined) {
+      if (dto.subDistrictId === null) {
+        row.subDistrict = null;
+      } else if (dto.subDistrictId !== row.subDistrict?.id) {
+        const subDistrict = await this.em.findOne(SubDistrictSchema, {
+          id: dto.subDistrictId,
+        });
+
+        if (!subDistrict) {
+          throw new NotFoundException(
+            `SubDistrict with ID ${dto.subDistrictId} not found`
+          );
+        }
+
+        row.subDistrict = subDistrict;
+      }
+    }
+
+    // 🔥 Relation consistency check (IMPORTANT)
+    if (
+      row.district &&
+      row.division &&
+      row.district.division?.id !== row.division.id
+    ) {
+      throw new BadRequestException(
+        "District does not belong to selected division"
+      );
+    }
+
+    if (
+      row.subDistrict &&
+      row.district &&
+      row.subDistrict.district?.id !== row.district.id
+    ) {
+      throw new BadRequestException(
+        "SubDistrict does not belong to selected district"
+      );
+    }
+
+    // ✅ Basic fields
+    if (dto.name !== undefined) row.name = dto.name;
+    if (dto.brand !== undefined) row.brand = dto.brand;
+    if (dto.lat !== undefined) row.lat = dto.lat;
+    if (dto.lng !== undefined) row.lng = dto.lng;
+    if (dto.village !== undefined) row.village = dto.village;
+    if (dto.tags !== undefined) row.tags = dto.tags;
+
+    row.updatedAt = new Date();
+
+    await this.em.flush();
+
+    return row;
   }
 
   private stationRowToResponse(r: IStation): FuelStationResponse {

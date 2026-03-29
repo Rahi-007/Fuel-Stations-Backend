@@ -4,7 +4,6 @@ import { DivisionSchema } from "../location/entity/division.entity";
 import { DistrictSchema } from "../location/entity/district.entity";
 import { SubDistrictSchema } from "../location/entity/subDistrict.entity";
 
-/** Stable OSM identity: "node/123", "way/456" — unique across the planet. */
 export const StationSchema = defineEntity({
   name: "Station",
   extends: BaseSchema,

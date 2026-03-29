@@ -1,14 +1,21 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   DefaultValuePipe,
   Get,
+  HttpException,
+  InternalServerErrorException,
+  Param,
   ParseFloatPipe,
   ParseIntPipe,
+  Put,
   Query,
 } from "@nestjs/common";
-import { ApiOperation, ApiQuery, ApiTags } from "@nestjs/swagger";
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { StationsService } from "./stations.service";
+import { StationRes, UpdateStationDto } from "./station.dto";
+import { IStation } from "./station.entity";
 
 @ApiTags("Stations")
 @Controller("stations")
@@ -16,18 +23,15 @@ export class StationsController {
   constructor(private readonly stationsService: StationsService) {}
 
   @Get()
-  @ApiOperation({
-    summary: "List stations from database",
-    description:
-      "Filter by division / district (জেলা) / sub-district (upazila) / village — partial case-insensitive match on linked admin names where present.",
-  })
   @ApiQuery({ name: "division", required: false })
   @ApiQuery({ name: "district", required: false })
   @ApiQuery({ name: "subDistrict", required: false })
   @ApiQuery({ name: "village", required: false })
-  @ApiQuery({ name: "limit", required: false, example: 200 })
+  @ApiQuery({ name: "page", required: false, example: 1 })
+  @ApiQuery({ name: "limit", required: false, example: 20 })
   async list(
-    @Query("limit", new DefaultValuePipe(200), ParseIntPipe) limit: number,
+    @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query("limit", new DefaultValuePipe(20), ParseIntPipe) limit: number,
     @Query("division") division = "",
     @Query("district") district = "",
     @Query("subDistrict") subDistrict = "",
@@ -36,14 +40,13 @@ export class StationsController {
     if (limit < 1 || limit > 500) {
       throw new BadRequestException("limit must be between 1 and 500");
     }
-    const stations = await this.stationsService.findStationsFiltered(
+
+    const result = await this.stationsService.findStationsFiltered(
       { division, district, subDistrict, village },
-      limit
+      { page, limit }
     );
-    return {
-      count: stations.length,
-      stations,
-    };
+
+    return result;
   }
 
   @Get("nearby")
@@ -67,7 +70,9 @@ export class StationsController {
       throw new BadRequestException("lng must be between -180 and 180");
     }
     if (radius < 100 || radius > 25000) {
-      throw new BadRequestException("radius must be between 100 and 25000 meters");
+      throw new BadRequestException(
+        "radius must be between 100 and 25000 meters"
+      );
     }
 
     const stations = await this.stationsService.fetchNearbyAndPersist(
@@ -82,6 +87,53 @@ export class StationsController {
       count: stations.length,
       stations,
       persisted: true,
+    };
+  }
+
+  @ApiOperation({ summary: "Update Station by Id" })
+  @ApiResponse({ status: 200, type: StationRes })
+  @Put(":id")
+  async update(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: UpdateStationDto
+  ): Promise<StationRes> {
+    try {
+      const row = await this.stationsService.update(id, dto);
+
+      return this.stationRowToResponse(row);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new InternalServerErrorException("Failed to update station");
+    }
+  }
+
+  stationRowToResponse(row: IStation): StationRes {
+    return {
+      id: row.id,
+      osmRef: row.osmRef,
+      name: row.name ?? undefined,
+      brand: row.brand ?? undefined,
+
+      lat: Number(row.lat),
+      lng: Number(row.lng),
+
+      division: row.division
+        ? { id: row.division.id, name: row.division.name }
+        : undefined,
+
+      district: row.district
+        ? { id: row.district.id, name: row.district.name }
+        : undefined,
+
+      subDistrict: row.subDistrict
+        ? { id: row.subDistrict.id, name: row.subDistrict.name }
+        : undefined,
+
+      village: row.village ?? undefined,
+      tags: row.tags ?? undefined,
+
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
     };
   }
 }
