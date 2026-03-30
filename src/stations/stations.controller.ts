@@ -90,6 +90,19 @@ export class StationsController {
     };
   }
 
+  @ApiOperation({ summary: "Get station by ID" })
+  @ApiResponse({ status: 200, type: StationRes })
+  @Get(":id")
+  async findOne(@Param("id", ParseIntPipe) id: number): Promise<StationRes> {
+    try {
+      const row = await this.stationsService.findOneWithChildren(id);
+      return this.stationRowToResponse(row);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new InternalServerErrorException("Failed to fetch station");
+    }
+  }
+
   @ApiOperation({ summary: "Update Station by Id" })
   @ApiResponse({ status: 200, type: StationRes })
   @Put(":id")

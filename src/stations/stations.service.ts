@@ -441,6 +441,19 @@ out center;`;
       limit,
     };
   }
+  
+    async findOneWithChildren(id: number): Promise<IStation> {
+      const row = await this.em.findOne(
+        StationSchema,
+        { id },
+        { populate: ["division", "subDistrict", "district"] as const }
+      );
+      if (!row) {
+        throw new NotFoundException(`Station with ID ${id} not found`);
+      }
+      return row;
+    }
+
   async update(id: number, dto: UpdateStationDto): Promise<IStation> {
     const row = await this.em.findOne(
       StationSchema,
