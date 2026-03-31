@@ -198,6 +198,14 @@ out center;`;
     return null;
   }
 
+  private dedupeByOsmRef(stations: FuelStationFromOsm[]): FuelStationFromOsm[] {
+    const unique = new Map<string, FuelStationFromOsm>();
+    for (const s of stations) {
+      unique.set(buildOsmRef(s.osmType, s.osmId), s);
+    }
+    return [...unique.values()];
+  }
+
   private async resolveDivisionForOsm(
     label: string | null,
     cache: Map<string, IDivision | null>
@@ -288,11 +296,7 @@ out center;`;
   async persistOsmStations(stations: FuelStationFromOsm[]): Promise<void> {
     if (!stations.length) return;
 
-    const unique = new Map<string, FuelStationFromOsm>();
-    for (const s of stations) {
-      unique.set(buildOsmRef(s.osmType, s.osmId), s);
-    }
-    const list = [...unique.values()];
+    const list = this.dedupeByOsmRef(stations);
     const refs = list.map((s) => buildOsmRef(s.osmType, s.osmId));
 
     const existing = await this.em.find(StationSchema, {
@@ -349,11 +353,7 @@ out center;`;
     const raw = await this.fetchNearbyFuelStations(lat, lng, radiusMeters);
     await this.persistOsmStations(raw);
 
-    const unique = new Map<string, FuelStationFromOsm>();
-    for (const s of raw) {
-      unique.set(buildOsmRef(s.osmType, s.osmId), s);
-    }
-    const list = [...unique.values()];
+    const list = this.dedupeByOsmRef(raw);
 
     const refs = list.map((s) => buildOsmRef(s.osmType, s.osmId));
     if (!refs.length) return [];
@@ -441,90 +441,44 @@ out center;`;
       limit,
     };
   }
-  
-    async findOneWithChildren(id: number): Promise<IStation> {
-      const row = await this.em.findOne(
-        StationSchema,
-        { id },
-        { populate: ["division", "subDistrict", "district"] as const }
-      );
-      if (!row) {
-        throw new NotFoundException(`Station with ID ${id} not found`);
-      }
-      return row;
-    }
 
-  async update(id: number, dto: UpdateStationDto): Promise<IStation> {
+  async findOneWithChildren(id: number): Promise<IStation> {
     const row = await this.em.findOne(
       StationSchema,
       { id },
-      {
-        populate: ["division", "district", "subDistrict"] as const,
-      }
+      { populate: ["division", "subDistrict", "district"] as const }
     );
-
     if (!row) {
       throw new NotFoundException(`Station with ID ${id} not found`);
     }
+    return row;
+  }
 
-    // ✅ Division
-    if (dto.divisionId !== undefined) {
-      if (dto.divisionId === null) {
-        row.division = null;
-      } else if (dto.divisionId !== row.division?.id) {
-        const division = await this.em.findOne(DivisionSchema, {
-          id: dto.divisionId,
-        });
-
-        if (!division) {
-          throw new NotFoundException(
-            `Division with ID ${dto.divisionId} not found`
-          );
-        }
-
-        row.division = division;
-      }
+  private async resolveDivisionForUpdate(id: number) {
+    const division = await this.em.findOne(DivisionSchema, { id });
+    if (!division) {
+      throw new NotFoundException(`Division with ID ${id} not found`);
     }
+    return division;
+  }
 
-    // ✅ District
-    if (dto.districtId !== undefined) {
-      if (dto.districtId === null) {
-        row.district = null;
-      } else if (dto.districtId !== row.district?.id) {
-        const district = await this.em.findOne(DistrictSchema, {
-          id: dto.districtId,
-        });
-
-        if (!district) {
-          throw new NotFoundException(
-            `District with ID ${dto.districtId} not found`
-          );
-        }
-
-        row.district = district;
-      }
+  private async resolveDistrictForUpdate(id: number) {
+    const district = await this.em.findOne(DistrictSchema, { id });
+    if (!district) {
+      throw new NotFoundException(`District with ID ${id} not found`);
     }
+    return district;
+  }
 
-    // ✅ SubDistrict
-    if (dto.subDistrictId !== undefined) {
-      if (dto.subDistrictId === null) {
-        row.subDistrict = null;
-      } else if (dto.subDistrictId !== row.subDistrict?.id) {
-        const subDistrict = await this.em.findOne(SubDistrictSchema, {
-          id: dto.subDistrictId,
-        });
-
-        if (!subDistrict) {
-          throw new NotFoundException(
-            `SubDistrict with ID ${dto.subDistrictId} not found`
-          );
-        }
-
-        row.subDistrict = subDistrict;
-      }
+  private async resolveSubDistrictForUpdate(id: number) {
+    const subDistrict = await this.em.findOne(SubDistrictSchema, { id });
+    if (!subDistrict) {
+      throw new NotFoundException(`SubDistrict with ID ${id} not found`);
     }
+    return subDistrict;
+  }
 
-    // 🔥 Relation consistency check (IMPORTANT)
+  private validateRelationConsistency(row: IStation): void {
     if (
       row.district &&
       row.division &&
@@ -544,14 +498,58 @@ out center;`;
         "SubDistrict does not belong to selected district"
       );
     }
+  }
 
-    // ✅ Basic fields
+  private applyBasicFields(row: IStation, dto: UpdateStationDto): void {
     if (dto.name !== undefined) row.name = dto.name;
     if (dto.brand !== undefined) row.brand = dto.brand;
     if (dto.lat !== undefined) row.lat = dto.lat;
     if (dto.lng !== undefined) row.lng = dto.lng;
     if (dto.village !== undefined) row.village = dto.village;
     if (dto.tags !== undefined) row.tags = dto.tags;
+  }
+
+  async update(id: number, dto: UpdateStationDto): Promise<IStation> {
+    const row = await this.em.findOne(
+      StationSchema,
+      { id },
+      {
+        populate: ["division", "district", "subDistrict"] as const,
+      }
+    );
+
+    if (!row) {
+      throw new NotFoundException(`Station with ID ${id} not found`);
+    }
+
+    if (dto.divisionId !== undefined) {
+      if (dto.divisionId === null) {
+        row.division = null;
+      } else if (dto.divisionId !== row.division?.id) {
+        row.division = await this.resolveDivisionForUpdate(dto.divisionId);
+      }
+    }
+
+    if (dto.districtId !== undefined) {
+      if (dto.districtId === null) {
+        row.district = null;
+      } else if (dto.districtId !== row.district?.id) {
+        row.district = await this.resolveDistrictForUpdate(dto.districtId);
+      }
+    }
+
+    if (dto.subDistrictId !== undefined) {
+      if (dto.subDistrictId === null) {
+        row.subDistrict = null;
+      } else if (dto.subDistrictId !== row.subDistrict?.id) {
+        row.subDistrict = await this.resolveSubDistrictForUpdate(
+          dto.subDistrictId
+        );
+      }
+    }
+
+    this.validateRelationConsistency(row);
+    this.applyBasicFields(row, dto);
 
     row.updatedAt = new Date();
 

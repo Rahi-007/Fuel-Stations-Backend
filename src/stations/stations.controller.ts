@@ -7,14 +7,19 @@ import {
   HttpException,
   InternalServerErrorException,
   Param,
-  ParseFloatPipe,
   ParseIntPipe,
   Put,
   Query,
 } from "@nestjs/common";
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { StationsService } from "./stations.service";
-import { StationRes, UpdateStationDto } from "./station.dto";
+import {
+  NearbyStationsQueryDto,
+  NearbyStationsResDto,
+  StationAdminRefDto,
+  StationRes,
+  UpdateStationDto,
+} from "./station.dto";
 import { IStation } from "./station.entity";
 
 @ApiTags("Stations")
@@ -55,14 +60,11 @@ export class StationsController {
     description:
       "Returns amenity=fuel from OSM within a radius, upserts into DB by unique OSM ref (node|way|id). Data © OpenStreetMap contributors.",
   })
-  @ApiQuery({ name: "lat", example: 23.8103 })
-  @ApiQuery({ name: "lng", example: 90.4125 })
-  @ApiQuery({ name: "radius", required: false, example: 5000 })
+  @ApiResponse({ status: 200, type: NearbyStationsResDto })
   async getNearby(
-    @Query("lat", ParseFloatPipe) lat: number,
-    @Query("lng", ParseFloatPipe) lng: number,
-    @Query("radius", new DefaultValuePipe(5000), ParseIntPipe) radius: number
-  ) {
+    @Query() query: NearbyStationsQueryDto
+  ): Promise<NearbyStationsResDto> {
+    const { lat, lng, radius } = query;
     if (lat < -90 || lat > 90) {
       throw new BadRequestException("lat must be between -90 and 90");
     }
@@ -130,17 +132,9 @@ export class StationsController {
       lat: Number(row.lat),
       lng: Number(row.lng),
 
-      division: row.division
-        ? { id: row.division.id, name: row.division.name }
-        : undefined,
-
-      district: row.district
-        ? { id: row.district.id, name: row.district.name }
-        : undefined,
-
-      subDistrict: row.subDistrict
-        ? { id: row.subDistrict.id, name: row.subDistrict.name }
-        : undefined,
+      division: this.toAdminRef(row.division),
+      district: this.toAdminRef(row.district),
+      subDistrict: this.toAdminRef(row.subDistrict),
 
       village: row.village ?? undefined,
       tags: row.tags ?? undefined,
@@ -148,5 +142,14 @@ export class StationsController {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };
+  }
+
+  private toAdminRef(ref: unknown): StationAdminRefDto | undefined {
+    if (ref == null || typeof ref !== "object") return undefined;
+    const maybe = ref as { id?: unknown; name?: unknown };
+    if (typeof maybe.id !== "number" || typeof maybe.name !== "string") {
+      return undefined;
+    }
+    return { id: maybe.id, name: maybe.name };
   }
 }
