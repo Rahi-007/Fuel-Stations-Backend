@@ -21,7 +21,7 @@ import {
   SubDistrictSchema,
   type ISubDistrict,
 } from "../location/entity/subDistrict.entity";
-import { UpdateStationDto } from "./station.dto";
+import { StationAdminRefDto, StationRes, UpdateStationDto } from "./station.dto";
 
 /** Public instances — primary is often busy; fallbacks improve reliability. */
 const OVERPASS_INTERPRETERS = [
@@ -51,6 +51,12 @@ export interface FuelStationFromOsm {
 /** After DB sync — includes internal primary key. */
 export interface FuelStationResponse extends FuelStationFromOsm {
   id: number;
+}
+
+export interface NearbyStationsResult {
+  source: "database" | "openstreetmap" | "database+openstreetmap";
+  stations: FuelStationResponse[];
+  persisted: boolean;
 }
 
 interface OverpassElement {
@@ -196,6 +202,70 @@ out center;`;
       return typeof n === "string" ? n : null;
     }
     return null;
+  }
+
+  private distanceMeters(
+    lat1: number,
+    lng1: number,
+    lat2: number,
+    lng2: number
+  ): number {
+    const R = 6_371_000;
+    const toRad = (x: number) => (x * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  private async findNearbyFromDb(
+    lat: number,
+    lng: number,
+    radiusMeters: number
+  ): Promise<FuelStationResponse[]> {
+    const latNum = Number(lat);
+    const lngNum = Number(lng);
+    const radiusNum = Number(radiusMeters);
+
+    if (
+      !Number.isFinite(latNum) ||
+      !Number.isFinite(lngNum) ||
+      !Number.isFinite(radiusNum)
+    ) {
+      throw new BadRequestException(
+        "lat, lng and radius must be valid numbers"
+      );
+    }
+
+    // Fast pre-filter with a lat/lng bounding box, then exact distance check.
+    const latDelta = radiusNum / 111_320;
+    const lngDelta =
+      radiusNum / (111_320 * Math.cos((latNum * Math.PI) / 180) || 1);
+
+    const rows = await this.em.find(
+      StationSchema,
+      {
+        lat: { $gte: latNum - latDelta, $lte: latNum + latDelta },
+        lng: { $gte: lngNum - lngDelta, $lte: lngNum + lngDelta },
+      },
+      { populate: ["division", "district", "subDistrict"] as const, limit: 500 }
+    );
+
+    return rows
+      .map((row) => ({
+        row,
+        dist: this.distanceMeters(
+          latNum,
+          lngNum,
+          Number(row.lat),
+          Number(row.lng)
+        ),
+      }))
+      .filter((x) => x.dist <= radiusNum)
+      .sort((a, b) => a.dist - b.dist)
+      .map((x) => this.stationRowToResponse(x.row));
   }
 
   private dedupeByOsmRef(stations: FuelStationFromOsm[]): FuelStationFromOsm[] {
@@ -391,6 +461,42 @@ out center;`;
     });
   }
 
+  async fetchNearbySmart(
+    lat: number,
+    lng: number,
+    radiusMeters: number
+  ): Promise<NearbyStationsResult> {
+    const dbStations = await this.findNearbyFromDb(lat, lng, radiusMeters);
+    if (dbStations.length >= 8) {
+      return { source: "database", stations: dbStations, persisted: false };
+    }
+
+    try {
+      const osmStations = await this.fetchNearbyAndPersist(
+        lat,
+        lng,
+        radiusMeters
+      );
+      const merged = new Map<number, FuelStationResponse>();
+      for (const s of dbStations) merged.set(s.id, s);
+      for (const s of osmStations) merged.set(s.id, s);
+      const stations = [...merged.values()];
+      return {
+        source: dbStations.length ? "database+openstreetmap" : "openstreetmap",
+        stations,
+        persisted: true,
+      };
+    } catch (error) {
+      if (dbStations.length) {
+        this.logger.warn(
+          "OSM fetch failed; returned cached DB nearby stations instead."
+        );
+        return { source: "database", stations: dbStations, persisted: false };
+      }
+      throw error;
+    }
+  }
+
   /**
    * List persisted stations with optional case-insensitive partial match filters
    * on linked division / district / sub-district names (and village text).
@@ -406,7 +512,12 @@ out center;`;
       page: number;
       limit: number;
     }
-  ) {
+  ): Promise<{
+    data: StationRes[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const cond: FilterQuery<IStation> = {};
 
     const v = (x?: string) => x?.trim();
@@ -424,8 +535,7 @@ out center;`;
     const limit = Math.min(Math.max(params.limit, 1), 500);
     const offset = (params.page - 1) * limit;
 
-    // total count
-    const totalRows = await this.em.count(StationSchema, cond);
+    const total = await this.em.count(StationSchema, cond);
 
     const rows = await this.em.find(StationSchema, cond, {
       limit,
@@ -435,8 +545,8 @@ out center;`;
     });
 
     return {
-      data: rows.map((r) => this.stationRowToResponse(r)),
-      totalRows,
+      data: rows.map((r) => this.stationRowToResponse2(r)), // ✅ mapping এখানে
+      total,
       page: params.page,
       limit,
     };
@@ -582,5 +692,34 @@ out center;`;
       subDistrict: this.relationName(r.subDistrict),
       village: r.village ?? null,
     };
+  }
+  private stationRowToResponse2(row: IStation): StationRes {
+    return {
+      id: row.id,
+      osmRef: row.osmRef,
+      name: row.name ?? undefined,
+      brand: row.brand ?? undefined,
+
+      lat: Number(row.lat),
+      lng: Number(row.lng),
+
+      division: this.toAdminRef(row.division),
+      district: this.toAdminRef(row.district),
+      subDistrict: this.toAdminRef(row.subDistrict),
+
+      village: row.village ?? undefined,
+      tags: row.tags ?? undefined,
+
+      createdAt: row.createdAt, // ✅ must thakte hobe
+      updatedAt: row.updatedAt, // ✅ must thakte hobe
+    };
+  }
+  private toAdminRef(ref: unknown): StationAdminRefDto | undefined {
+    if (ref == null || typeof ref !== "object") return undefined;
+    const maybe = ref as { id?: unknown; name?: unknown };
+    if (typeof maybe.id !== "number" || typeof maybe.name !== "string") {
+      return undefined;
+    }
+    return { id: maybe.id, name: maybe.name };
   }
 }

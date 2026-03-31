@@ -25,9 +25,40 @@ import { IStation } from "./station.entity";
 @ApiTags("Stations")
 @Controller("stations")
 export class StationsController {
-  constructor(private readonly stationsService: StationsService) {}
+  constructor(private readonly stationsService: StationsService) { }
 
+  // @Get()
+  // @ApiQuery({ name: "division", required: false })
+  // @ApiQuery({ name: "district", required: false })
+  // @ApiQuery({ name: "subDistrict", required: false })
+  // @ApiQuery({ name: "village", required: false })
+  // @ApiQuery({ name: "page", required: false, example: 1 })
+  // @ApiQuery({ name: "limit", required: false, example: 20 })
+  // async list(
+  //   @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
+  //   @Query("limit", new DefaultValuePipe(20), ParseIntPipe) limit: number,
+  //   @Query("division") division = "",
+  //   @Query("district") district = "",
+  //   @Query("subDistrict") subDistrict = "",
+  //   @Query("village") village = ""
+  // ) {
+  //   if (limit < 1 || limit > 500) {
+  //     throw new BadRequestException("limit must be between 1 and 500");
+  //   }
+
+  //   const result = await this.stationsService.findStationsFiltered(
+  //     { division, district, subDistrict, village },
+  //     { page, limit }
+  //   );
+
+  //   return {
+  //     ...result,
+  //     data: result.data.map((row) => this.stationRowToResponse(row)),
+  //   };
+  // }
   @Get()
+  @ApiOperation({ summary: "Get all stations (filtered + paginated)" })
+  @ApiResponse({ status: 200, type: [StationRes] })
   @ApiQuery({ name: "division", required: false })
   @ApiQuery({ name: "district", required: false })
   @ApiQuery({ name: "subDistrict", required: false })
@@ -41,7 +72,12 @@ export class StationsController {
     @Query("district") district = "",
     @Query("subDistrict") subDistrict = "",
     @Query("village") village = ""
-  ) {
+  ): Promise<{
+    data: StationRes[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     if (limit < 1 || limit > 500) {
       throw new BadRequestException("limit must be between 1 and 500");
     }
@@ -51,7 +87,7 @@ export class StationsController {
       { page, limit }
     );
 
-    return result;
+    return result; // ✅ NO mapping এখানে
   }
 
   @Get("nearby")
@@ -77,18 +113,18 @@ export class StationsController {
       );
     }
 
-    const stations = await this.stationsService.fetchNearbyAndPersist(
+    const result = await this.stationsService.fetchNearbySmart(
       lat,
       lng,
       radius
     );
 
     return {
-      source: "openstreetmap",
+      source: result.source,
       attribution: "© OpenStreetMap contributors",
-      count: stations.length,
-      stations,
-      persisted: true,
+      count: result.stations.length,
+      stations: result.stations,
+      persisted: result.persisted,
     };
   }
 
