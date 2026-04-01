@@ -10,9 +10,61 @@ import {
   Min,
   Max,
   ValidateNested,
+  IsEnum,
+  IsBoolean,
 } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Expose, Transform, Type } from "class-transformer";
+import { FuelStatus, QueueStatus } from "./station.entity";
+
+/** DTO for fuel types with proper validation */
+export class FuelTypesDto {
+  @Expose()
+  @IsBoolean()
+  @ApiProperty({ example: true })
+  petrol!: boolean;
+
+  @Expose()
+  @IsBoolean()
+  @ApiProperty({ example: true })
+  octane!: boolean;
+
+  @Expose()
+  @IsBoolean()
+  @ApiProperty({ example: false })
+  diesel!: boolean;
+}
+
+/** DTO for fuel prices with proper validation */
+export class FuelPricesDto {
+  @Expose()
+  @IsNumber()
+  @ApiProperty({ example: 109.5 })
+  petrol!: number;
+
+  @Expose()
+  @IsNumber()
+  @ApiProperty({ example: 112.3 })
+  octane!: number;
+
+  @Expose()
+  @IsNumber()
+  @ApiProperty({ example: 98.7 })
+  diesel!: number;
+}
+
+/** User reference DTO for lastUpdatedBy */
+export class UserRefDto {
+  @Expose()
+  @IsInt()
+  @ApiProperty({ example: 1 })
+  id!: number;
+
+  @Expose()
+  @IsString()
+  @ApiProperty({ example: "John Doe" })
+  name!: string;
+}
 
 export class CreateStationDto {
   @IsString()
@@ -124,6 +176,81 @@ export class UpdateStationDto {
     example: { fuel: "yes", shop: "yes" },
   })
   tags?: Record<string, any>;
+
+  @IsString()
+  @IsOptional()
+  @ApiPropertyOptional({
+    description: "Avatar image URL",
+    example: "https://example.com/station-avatar.jpg",
+  })
+  avatar?: string;
+
+  @IsObject()
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => FuelTypesDto)
+  @ApiPropertyOptional({ type: FuelTypesDto })
+  fuelTypes?: FuelTypesDto;
+
+  @IsObject()
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => FuelPricesDto)
+  @ApiPropertyOptional({ type: FuelPricesDto })
+  prices?: FuelPricesDto;
+
+  @IsEnum(FuelStatus)
+  @IsOptional()
+  @ApiPropertyOptional({
+    enum: FuelStatus,
+    description: "Fuel availability status",
+    example: FuelStatus.AVAILABLE,
+  })
+  status?: FuelStatus;
+
+  @IsEnum(QueueStatus)
+  @IsOptional()
+  @ApiPropertyOptional({
+    enum: QueueStatus,
+    description: "Queue/line status",
+    example: QueueStatus.LOW,
+  })
+  queueStatus?: QueueStatus;
+
+  @IsString()
+  @IsOptional()
+  @ApiPropertyOptional({
+    description: "Opening time",
+    example: "08:00",
+  })
+  openingTime?: string;
+
+  @IsString()
+  @IsOptional()
+  @ApiPropertyOptional({
+    description: "Google Maps link",
+    example: "https://maps.google.com/?q=23.8103,90.4125",
+  })
+  googleMapLink?: string;
+
+  @IsString()
+  @IsOptional()
+  @ApiPropertyOptional({
+    description: "Station description",
+  })
+  description?: string;
+
+  @IsString()
+  @IsOptional()
+  @ApiPropertyOptional({
+    description: "Admin note",
+  })
+  adminNote?: string;
+
+  @IsInt()
+  @IsOptional()
+  @ApiPropertyOptional({ description: "Last updated by user ID", example: 1 })
+  lastUpdatedById?: number;
 }
 
 export class StationAdminRefDto {
@@ -203,6 +330,101 @@ export class StationRes {
   @Expose()
   @IsDate()
   updatedAt!: Date;
+
+  // New engagement and fuel fields
+  @Expose()
+  @IsString()
+  @IsOptional()
+  @ApiPropertyOptional({
+    description: "Avatar image URL",
+    example: "https://example.com/station-avatar.jpg",
+  })
+  avatar?: string;
+
+  @Expose()
+  @ValidateNested()
+  @Type(() => FuelTypesDto)
+  @IsOptional()
+  @ApiPropertyOptional({ type: FuelTypesDto })
+  fuelTypes?: FuelTypesDto;
+
+  @Expose()
+  @ValidateNested()
+  @Type(() => FuelPricesDto)
+  @IsOptional()
+  @ApiPropertyOptional({ type: FuelPricesDto })
+  prices?: FuelPricesDto;
+
+  @Expose()
+  @IsEnum(FuelStatus)
+  @IsOptional()
+  @ApiPropertyOptional({
+    enum: FuelStatus,
+    description: "Fuel availability status",
+    example: FuelStatus.AVAILABLE,
+  })
+  status?: FuelStatus;
+
+  @Expose()
+  @IsEnum(QueueStatus)
+  @IsOptional()
+  @ApiPropertyOptional({
+    enum: QueueStatus,
+    description: "Queue/line status",
+    example: QueueStatus.LOW,
+  })
+  queueStatus?: QueueStatus;
+
+  @Expose()
+  @IsString()
+  @IsOptional()
+  @ApiPropertyOptional({
+    description: "Opening time",
+    example: "08:00",
+  })
+  openingTime?: string;
+
+  @Expose()
+  @IsString()
+  @IsOptional()
+  @ApiPropertyOptional({
+    description: "Google Maps link",
+    example: "https://maps.google.com/?q=23.8103,90.4125",
+  })
+  googleMapLink?: string;
+
+  @Expose()
+  @IsString()
+  @IsOptional()
+  @ApiPropertyOptional({
+    description: "Station description",
+  })
+  description?: string;
+
+  @Expose()
+  @IsString()
+  @IsOptional()
+  @ApiPropertyOptional({
+    description: "Admin note",
+  })
+  adminNote?: string;
+
+  @Expose()
+  @IsNumber()
+  @ApiProperty({ example: 150, description: "Total number of likes" })
+  likesCount!: number;
+
+  @Expose()
+  @IsNumber()
+  @ApiProperty({ example: 89, description: "Total number of followers" })
+  followersCount!: number;
+
+  @Expose()
+  @ValidateNested()
+  @Type(() => UserRefDto)
+  @IsOptional()
+  @ApiPropertyOptional({ type: UserRefDto, description: "User who last updated the station" })
+  lastUpdatedBy?: UserRefDto;
 }
 
 export class NearbyStationsQueryDto {
@@ -327,4 +549,71 @@ export class NearbyStationsResDto {
   @Expose()
   @ApiProperty({ example: true })
   persisted!: boolean;
+}
+
+/** DTO for creating a like on a station */
+export class CreateStationLikeDto {
+  @IsInt()
+  @ApiProperty({ description: "Station ID", example: 1 })
+  stationId!: number;
+}
+
+/** DTO for creating a follow on a station */
+export class CreateStationFollowDto {
+  @IsInt()
+  @ApiProperty({ description: "Station ID", example: 1 })
+  stationId!: number;
+}
+
+/** DTO for creating a comment on a station */
+export class CreateCommentDto {
+  @IsString()
+  @ApiProperty({
+    description: "Comment text",
+    example: "Line onek beshi",
+  })
+  text!: string;
+
+  @IsInt()
+  @ApiProperty({ description: "Station ID", example: 1 })
+  stationId!: number;
+}
+
+/** DTO for updating a comment */
+export class UpdateCommentDto {
+  @IsString()
+  @IsOptional()
+  @ApiPropertyOptional({
+    description: "Comment text",
+    example: "Updated line",
+  })
+  text?: string;
+}
+
+/** Response DTO for a comment */
+export class CommentRes {
+  @Expose()
+  @IsInt()
+  @ApiProperty({ example: 1 })
+  id!: number;
+
+  @Expose()
+  @IsString()
+  @ApiProperty({ example: "Line onek beshi" })
+  text!: string;
+
+  @Expose()
+  @IsDate()
+  @ApiProperty({ example: "2024-01-15T10:30:00Z" })
+  createdAt!: Date;
+
+  @Expose()
+  @IsInt()
+  @ApiProperty({ example: 5, description: "User ID who commented" })
+  userId!: number;
+
+  @Expose()
+  @IsInt()
+  @ApiProperty({ example: 1 })
+  stationId!: number;
 }

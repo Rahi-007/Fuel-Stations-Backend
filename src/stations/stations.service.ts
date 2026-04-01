@@ -7,7 +7,13 @@ import {
 } from "@nestjs/common";
 import { EntityManager, FilterQuery } from "@mikro-orm/core";
 import axios, { AxiosError } from "axios";
-import { StationSchema, type IStation } from "./station.entity";
+import {
+  CommentSchema,
+  StationFollowSchema,
+  StationLikeSchema,
+  StationSchema,
+  type IStation,
+} from "./station.entity";
 import { extractAdminFromOsmTags } from "./osm-admin.util";
 import {
   DivisionSchema,
@@ -21,7 +27,17 @@ import {
   SubDistrictSchema,
   type ISubDistrict,
 } from "../location/entity/subDistrict.entity";
-import { StationAdminRefDto, StationRes, UpdateStationDto } from "./station.dto";
+import {
+  type CommentRes,
+  type CreateCommentDto,
+  FuelPricesDto,
+  FuelTypesDto,
+  StationAdminRefDto,
+  StationRes,
+  type UserRefDto,
+  UpdateStationDto,
+} from "./station.dto";
+import { UserSchema } from "../auth/entity/user.entity";
 
 /** Public instances — primary is often busy; fallbacks improve reliability. */
 const OVERPASS_INTERPRETERS = [
@@ -404,6 +420,8 @@ out center;`;
         lat: s.lat,
         lng: s.lng,
         tags: s.tags,
+        fuelTypes: null,
+        prices: null,
         division,
         district,
         subDistrict,
@@ -541,7 +559,7 @@ out center;`;
       limit,
       offset,
       orderBy: { id: "DESC" },
-      populate: ["division", "district", "subDistrict"] as const,
+      populate: ["division", "district", "subDistrict", "lastUpdatedBy"] as const,
     });
 
     return {
@@ -556,7 +574,9 @@ out center;`;
     const row = await this.em.findOne(
       StationSchema,
       { id },
-      { populate: ["division", "subDistrict", "district"] as const }
+      {
+        populate: ["division", "subDistrict", "district", "lastUpdatedBy"] as const,
+      }
     );
     if (!row) {
       throw new NotFoundException(`Station with ID ${id} not found`);
@@ -617,6 +637,15 @@ out center;`;
     if (dto.lng !== undefined) row.lng = dto.lng;
     if (dto.village !== undefined) row.village = dto.village;
     if (dto.tags !== undefined) row.tags = dto.tags;
+    if (dto.avatar !== undefined) row.avatar = dto.avatar;
+    if (dto.fuelTypes !== undefined) row.fuelTypes = dto.fuelTypes as unknown as object;
+    if (dto.prices !== undefined) row.prices = dto.prices as unknown as object;
+    if (dto.status !== undefined) row.status = dto.status;
+    if (dto.queueStatus !== undefined) row.queueStatus = dto.queueStatus;
+    if (dto.openingTime !== undefined) row.openingTime = dto.openingTime;
+    if (dto.googleMapLink !== undefined) row.googleMapLink = dto.googleMapLink;
+    if (dto.description !== undefined) row.description = dto.description;
+    if (dto.adminNote !== undefined) row.adminNote = dto.adminNote;
   }
 
   async update(id: number, dto: UpdateStationDto): Promise<IStation> {
@@ -624,7 +653,7 @@ out center;`;
       StationSchema,
       { id },
       {
-        populate: ["division", "district", "subDistrict"] as const,
+        populate: ["division", "district", "subDistrict", "lastUpdatedBy"] as const,
       }
     );
 
@@ -660,12 +689,118 @@ out center;`;
 
     this.validateRelationConsistency(row);
     this.applyBasicFields(row, dto);
+    if (dto.lastUpdatedById !== undefined) {
+      const user = await this.em.findOne(UserSchema, { id: dto.lastUpdatedById });
+      if (!user) {
+        throw new NotFoundException(
+          `User with ID ${dto.lastUpdatedById} not found`
+        );
+      }
+      row.lastUpdatedBy = user;
+    }
 
     row.updatedAt = new Date();
 
     await this.em.flush();
 
     return row;
+  }
+
+  async likeStation(userId: number, stationId: number): Promise<void> {
+    const station = await this.em.findOne(StationSchema, { id: stationId });
+    if (!station) throw new NotFoundException(`Station with ID ${stationId} not found`);
+    const user = await this.em.findOne(UserSchema, { id: userId });
+    if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
+
+    const existing = await this.em.findOne(StationLikeSchema, { station, user });
+    if (existing) return;
+
+    this.em.create(StationLikeSchema, { station, user });
+    station.likesCount = (station.likesCount ?? 0) + 1;
+    await this.em.flush();
+  }
+
+  async unlikeStation(userId: number, stationId: number): Promise<void> {
+    const station = await this.em.findOne(StationSchema, { id: stationId });
+    if (!station) throw new NotFoundException(`Station with ID ${stationId} not found`);
+    const user = await this.em.findOne(UserSchema, { id: userId });
+    if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
+
+    const existing = await this.em.findOne(StationLikeSchema, { station, user });
+    if (!existing) return;
+
+    this.em.remove(existing);
+    station.likesCount = Math.max((station.likesCount ?? 0) - 1, 0);
+    await this.em.flush();
+  }
+
+  async followStation(userId: number, stationId: number): Promise<void> {
+    const station = await this.em.findOne(StationSchema, { id: stationId });
+    if (!station) throw new NotFoundException(`Station with ID ${stationId} not found`);
+    const user = await this.em.findOne(UserSchema, { id: userId });
+    if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
+
+    const existing = await this.em.findOne(StationFollowSchema, { station, user });
+    if (existing) return;
+
+    this.em.create(StationFollowSchema, { station, user });
+    station.followersCount = (station.followersCount ?? 0) + 1;
+    await this.em.flush();
+  }
+
+  async unfollowStation(userId: number, stationId: number): Promise<void> {
+    const station = await this.em.findOne(StationSchema, { id: stationId });
+    if (!station) throw new NotFoundException(`Station with ID ${stationId} not found`);
+    const user = await this.em.findOne(UserSchema, { id: userId });
+    if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
+
+    const existing = await this.em.findOne(StationFollowSchema, { station, user });
+    if (!existing) return;
+
+    this.em.remove(existing);
+    station.followersCount = Math.max((station.followersCount ?? 0) - 1, 0);
+    await this.em.flush();
+  }
+
+  async createComment(userId: number, dto: CreateCommentDto): Promise<CommentRes> {
+    const station = await this.em.findOne(StationSchema, { id: dto.stationId });
+    if (!station) throw new NotFoundException(`Station with ID ${dto.stationId} not found`);
+    const user = await this.em.findOne(UserSchema, { id: userId });
+    if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
+
+    const comment = this.em.create(CommentSchema, {
+      text: dto.text,
+      station,
+      user,
+    });
+    await this.em.flush();
+
+    return {
+      id: comment.id,
+      text: comment.text,
+      createdAt: comment.createdAt,
+      userId: user.id,
+      stationId: station.id,
+    };
+  }
+
+  async getCommentsByStation(stationId: number): Promise<CommentRes[]> {
+    const station = await this.em.findOne(StationSchema, { id: stationId });
+    if (!station) throw new NotFoundException(`Station with ID ${stationId} not found`);
+
+    const comments = await this.em.find(
+      CommentSchema,
+      { station },
+      { populate: ["user", "station"] as const, orderBy: { id: "DESC" } }
+    );
+
+    return comments.map((comment) => ({
+      id: comment.id,
+      text: comment.text,
+      createdAt: comment.createdAt,
+      userId: comment.user.id,
+      stationId: comment.station.id,
+    }));
   }
 
   private stationRowToResponse(r: IStation): FuelStationResponse {
@@ -710,11 +845,33 @@ out center;`;
       village: row.village ?? undefined,
       tags: row.tags ?? undefined,
 
-      createdAt: row.createdAt, // ✅ must thakte hobe
-      updatedAt: row.updatedAt, // ✅ must thakte hobe
+      avatar: row.avatar ?? undefined,
+      fuelTypes: ((row.fuelTypes ?? undefined) as unknown as FuelTypesDto | undefined),
+      prices: ((row.prices ?? undefined) as unknown as FuelPricesDto | undefined),
+      status: row.status ?? undefined,
+      queueStatus: row.queueStatus ?? undefined,
+      openingTime: row.openingTime ?? undefined,
+      googleMapLink: row.googleMapLink ?? undefined,
+      description: row.description ?? undefined,
+      adminNote: row.adminNote ?? undefined,
+      likesCount: Number(row.likesCount ?? 0),
+      followersCount: Number(row.followersCount ?? 0),
+      lastUpdatedBy: this.toUserRef(row.lastUpdatedBy),
+
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
     };
   }
   private toAdminRef(ref: unknown): StationAdminRefDto | undefined {
+    if (ref == null || typeof ref !== "object") return undefined;
+    const maybe = ref as { id?: unknown; name?: unknown };
+    if (typeof maybe.id !== "number" || typeof maybe.name !== "string") {
+      return undefined;
+    }
+    return { id: maybe.id, name: maybe.name };
+  }
+
+  private toUserRef(ref: unknown): UserRefDto | undefined {
     if (ref == null || typeof ref !== "object") return undefined;
     const maybe = ref as { id?: unknown; name?: unknown };
     if (typeof maybe.id !== "number" || typeof maybe.name !== "string") {

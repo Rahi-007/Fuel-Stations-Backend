@@ -1,7 +1,7 @@
 import * as dotenv from "dotenv";
 import { defineConfig } from "@mikro-orm/postgresql";
 import { UserSchema } from "../auth/entity/user.entity";
-import { StationSchema } from "../stations/station.entity";
+import { StationSchema, StationLikeSchema, StationFollowSchema, CommentSchema } from "../stations/station.entity";
 import { DivisionSchema } from "../location/entity/division.entity";
 import { DistrictSchema } from "../location/entity/district.entity";
 import { SubDistrictSchema } from "../location/entity/subDistrict.entity";
@@ -18,6 +18,9 @@ export default defineConfig({
     DistrictSchema,
     SubDistrictSchema,
     StationSchema,
+    StationLikeSchema,
+    StationFollowSchema,
+    CommentSchema,
   ],
   debug: false,
   allowGlobalContext: true,
