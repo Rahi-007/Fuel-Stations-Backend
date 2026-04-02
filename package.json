@@ -1,6 +1,5 @@
 {
   "name": "fuel_map",
-  "type": "module",
   "version": "1.0.0",
   "description": "Backend API for FuelMap.bd",
   "author": "Bisakto Rahi",
