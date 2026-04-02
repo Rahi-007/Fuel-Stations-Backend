@@ -1,25 +1,22 @@
 {
   "name": "fuel_map",
   "version": "1.0.0",
-  "description": "Backend API for FuelMap.bd - Find fuel stations and real-time fuel availability in Bangladesh",
+  "description": "Backend API for FuelMap.bd",
   "author": "Bisakto Rahi",
   "private": true,
   "license": "MIT",
   "scripts": {
-    "start": "nest start --ignoreDeprecations 6.0",
-    "start:prod": "node --loader ts-node/esm --experimental-specifier-resolution=node src/main.ts",
+    "build": "tsc",
+    "start": "node dist/main.js",
     "start:dev": "nest start --watch",
-    "start:dev2": "nest start --watch --ignoreDeprecations 6.0",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "build": "nest build --ignoreDeprecations 6.0",
-    "seed": "npx ts-node src/config/seed.ts --refresh",
-    "seed:sync": "npx ts-node src/config/seed.ts"
+    "seed": "ts-node src/config/seed.ts --refresh",
+    "seed:sync": "ts-node src/config/seed.ts"
   },
   "dependencies": {
     "@mikro-orm/core": "^7.0.5",
     "@mikro-orm/nestjs": "^7.0.1",
     "@mikro-orm/postgresql": "^7.0.5",
-    "@nestjs/cli": "^11.0.16",
     "@nestjs/common": "^11.1.17",
     "@nestjs/core": "^11.1.17",
     "@nestjs/jwt": "^11.0.2",
@@ -40,6 +37,7 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
+    "@nestjs/cli": "^11.0.16",
     "@nestjs/testing": "^11.1.17",
     "@types/node": "^25.5.0",
     "ts-node": "^10.9.2",
