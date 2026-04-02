@@ -1,6 +1,6 @@
 import mikroOrmConfig from "./mikro-orm.config";
 import { UserSchema } from "../auth/entity/user.entity";
-import { Role, UserStatus } from "../utils/enums";
+import { Role } from "../utils/enums";
 import * as bcrypt from "bcryptjs";
 import * as dotenv from "dotenv";
 import { MikroORM } from "@mikro-orm/postgresql";
@@ -31,15 +31,13 @@ export async function runSeeding(refresh = true) {
     const em = orm.em.fork();
 
     if (refresh) {
-      // Create schema (fresh installation) - drops all data
-      await orm.schema.ensureDatabase();
-      await orm.schema.drop();
-      await orm.schema.create();
+      // For Neon, use schema refresh instead of drop/create
+      console.log("🔄 Resetting schema...");
+      await orm.schema.refreshDatabase();
       console.log("✅ Database schema created");
     } else {
       // Update schema (sync mode) - preserves existing data
-      await orm.schema.ensureDatabase();
-      await orm.schema.update();
+      await orm.schema.updateSchema();
       console.log("✅ Database schema synced");
     }
 
@@ -61,7 +59,10 @@ export async function runSeeding(refresh = true) {
         email: "admin@example.com",
         passHash: hashedPassword,
         role: Role.ADMIN,
-        status: UserStatus.Active,
+        isVerified: false,
+        isBlocked: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       await em.persist(adminUser).flush();
@@ -84,7 +85,10 @@ export async function runSeeding(refresh = true) {
         email: "user@example.com",
         passHash: hashedPassword,
         role: Role.USER,
-        status: UserStatus.Active,
+        isVerified: false,
+        isBlocked: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       await em.persist(regularUser).flush();

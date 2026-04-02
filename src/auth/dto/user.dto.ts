@@ -9,7 +9,7 @@ import {
   IsString,
   IsBoolean,
 } from "class-validator";
-import { BloodGroup, Gender, Role, UserStatus } from "../../utils/enums";
+import { BloodGroup, Gender, Role } from "../../utils/enums";
 
 export class CreateUserDto {
   @IsString()

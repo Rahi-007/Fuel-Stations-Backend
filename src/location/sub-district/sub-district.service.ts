@@ -11,7 +11,7 @@ import { StationSchema } from "../../stations/station.entity";
 
 @Injectable()
 export class SubDistrictService {
-  constructor(private readonly em: EntityManager) {}
+  constructor(private readonly em: EntityManager) { }
 
   async findAll(): Promise<ISubDistrict[]> {
     return this.em.find(
@@ -56,7 +56,7 @@ export class SubDistrictService {
       description: dto.description ?? "",
       district,
       isActive: dto.isActive ?? true,
-    });
+    } as any);
     await this.em.flush();
     return row;
   }

@@ -411,9 +411,9 @@ out center;`;
         if (s.name != null) row.name = s.name;
         if (s.brand != null) row.brand = s.brand;
         row.tags = s.tags;
-        row.division = division;
-        row.district = district;
-        row.subDistrict = subDistrict;
+        row.division = division || undefined;
+        row.district = district || undefined;
+        row.subDistrict = subDistrict || undefined;
         if (s.village != null) row.village = s.village;
         continue;
       }
@@ -430,7 +430,7 @@ out center;`;
         district,
         subDistrict,
         village: s.village,
-      });
+      } as any);
       byRef.set(ref, created);
     }
 
@@ -667,7 +667,7 @@ out center;`;
 
     if (dto.divisionId !== undefined) {
       if (dto.divisionId === null) {
-        row.division = null;
+        row.division = undefined;
       } else if (dto.divisionId !== row.division?.id) {
         row.division = await this.resolveDivisionForUpdate(dto.divisionId);
       }
@@ -675,7 +675,7 @@ out center;`;
 
     if (dto.districtId !== undefined) {
       if (dto.districtId === null) {
-        row.district = null;
+        row.district = undefined;
       } else if (dto.districtId !== row.district?.id) {
         row.district = await this.resolveDistrictForUpdate(dto.districtId);
       }
@@ -683,7 +683,7 @@ out center;`;
 
     if (dto.subDistrictId !== undefined) {
       if (dto.subDistrictId === null) {
-        row.subDistrict = null;
+        row.subDistrict = undefined;
       } else if (dto.subDistrictId !== row.subDistrict?.id) {
         row.subDistrict = await this.resolveSubDistrictForUpdate(
           dto.subDistrictId
@@ -719,7 +719,7 @@ out center;`;
     const existing = await this.em.findOne(StationLikeSchema, { station, user });
     if (existing) return;
 
-    this.em.create(StationLikeSchema, { station, user });
+    this.em.create(StationLikeSchema, { station, user } as any);
     station.likesCount = (station.likesCount ?? 0) + 1;
     await this.em.flush();
   }
@@ -757,7 +757,7 @@ out center;`;
     const existing = await this.em.findOne(StationFollowSchema, { station, user });
     if (existing) return;
 
-    this.em.create(StationFollowSchema, { station, user });
+    this.em.create(StationFollowSchema, { station, user } as any);
     station.followersCount = (station.followersCount ?? 0) + 1;
     await this.em.flush();
   }
@@ -815,7 +815,7 @@ out center;`;
       station,
       user,
       parent: parent ?? undefined,
-    });
+    } as any);
     await this.em.flush();
     await this.em.populate(comment, ["user", "station", "parent"] as const);
 

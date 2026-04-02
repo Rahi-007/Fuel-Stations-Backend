@@ -123,14 +123,9 @@ export class DivisionController {
       updatedAt: row.updatedAt!,
     };
 
-    if (
-      withChildren &&
-      row.districts &&
-      typeof row.districts.isInitialized === "function" &&
-      row.districts.isInitialized()
-    ) {
-      res.districts = [...row.districts].map((d) =>
-        this.buildDistrictResNested(d as IDistrict)
+    if (withChildren && row.districts?.isInitialized()) {
+      res.districts = row.districts.getItems().map((d) =>
+        this.buildDistrictResNested(d)
       );
     }
 
@@ -147,13 +142,9 @@ export class DivisionController {
       updatedAt: d.updatedAt!,
     };
 
-    if (
-      d.subDistricts &&
-      typeof d.subDistricts.isInitialized === "function" &&
-      d.subDistricts.isInitialized()
-    ) {
-      out.subDistricts = [...d.subDistricts].map((s) =>
-        this.buildSubDistrictResNested(s as ISubDistrict)
+    if (d.subDistricts?.isInitialized()) {
+      out.subDistricts = d.subDistricts.getItems().map((s) =>
+        this.buildSubDistrictResNested(s)
       );
     }
 

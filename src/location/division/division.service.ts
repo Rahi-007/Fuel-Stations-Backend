@@ -18,7 +18,7 @@ interface IUpdateDivisionDto extends UpdateDivisionDto {
 
 @Injectable()
 export class DivisionService {
-  constructor(private readonly em: EntityManager) {}
+  constructor(private readonly em: EntityManager) { }
 
   // Get all division
   async findAll(): Promise<IDivision[]> {
@@ -49,7 +49,7 @@ export class DivisionService {
       description: createDivisionDto.description || "",
       isActive: createDivisionDto.isActive || false,
       createdAt: new Date(),
-    });
+    } as any);
 
     await this.em.flush();
 

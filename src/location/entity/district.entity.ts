@@ -1,18 +1,24 @@
-import { defineEntity, type InferEntity, p } from '@mikro-orm/core';
+import { Entity, Property, ManyToOne, OneToMany, Collection } from '@mikro-orm/core';
 import { BaseSchema } from '../../auth/entity/base.entity';
 import { DivisionSchema } from './division.entity';
 import { SubDistrictSchema } from './subDistrict.entity';
 
-export const DistrictSchema = defineEntity({
-  name: 'District',
-  extends: BaseSchema,
-  properties: {
-    name: p.string().length(191),
-    description: p.string().nullable().length(191),
-    division: () => p.manyToOne(DivisionSchema),
-    subDistricts: () => p.oneToMany(SubDistrictSchema).mappedBy('district'),
-    isActive: p.boolean().default(true),
-  },
-});
+@Entity()
+export class DistrictSchema extends BaseSchema {
+  @Property({ length: 191 })
+  name!: string;
 
-export type IDistrict = InferEntity<typeof DistrictSchema>;
+  @Property({ length: 191, nullable: true })
+  description?: string;
+
+  @ManyToOne(() => DivisionSchema)
+  division!: DivisionSchema;
+
+  @OneToMany(() => SubDistrictSchema, 'district')
+  subDistricts = new Collection<SubDistrictSchema>(this);
+
+  @Property({ default: true })
+  isActive = true;
+}
+
+export type IDistrict = DistrictSchema;

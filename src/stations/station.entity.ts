@@ -1,4 +1,4 @@
-import { defineEntity, type InferEntity, p } from "@mikro-orm/core";
+import { Entity, Property, ManyToOne, OneToMany, Index } from "@mikro-orm/core";
 import { BaseSchema } from "../auth/entity/base.entity";
 import { DivisionSchema } from "../location/entity/division.entity";
 import { DistrictSchema } from "../location/entity/district.entity";
@@ -19,99 +19,118 @@ export enum QueueStatus {
   HIGH = "high",
 }
 
-export const StationSchema = defineEntity({
-  name: "Station",
-  extends: BaseSchema,
-  properties: {
-    // Basic Information
-    osmRef: p.string().unique().length(48),
-    name: p.string().nullable().length(255),
-    brand: p.string().nullable().length(191),
-    lat: p.double(),
-    lng: p.double(),
-    
-    // Location Relations
-    division: () => p.manyToOne(DivisionSchema).nullable(),
-    district: () => p.manyToOne(DistrictSchema).nullable(),
-    subDistrict: () => p.manyToOne(SubDistrictSchema).nullable(),
-    village: p.string().nullable().length(191).index(),
-    
-    // OSM Tags
-    tags: p.json().nullable(),
-    
-    // Avatar/Image
-    avatar: p.string().nullable().length(500),
-    
-    // Fuel Types & Prices (stored as JSON)
-    fuelTypes: p.json().nullable(),
-    prices: p.json().nullable(),
-    
-    // Status Fields
-    status: p.enum(() => FuelStatus).default(FuelStatus.AVAILABLE),
-    queueStatus: p.enum(() => QueueStatus).default(QueueStatus.LOW),
-    
-    // Time Information
-    openingTime: p.string().nullable().length(10), // Format: "08:00" or "8am"
-    
-    // Links & Notes
-    googleMapLink: p.string().nullable().length(500),
-    description: p.text().nullable(),
-    adminNote: p.text().nullable(),
-    
-    // User Engagement - Many to Many with User (join table needed)
-    // likedBy and followedBy will be implemented via separate like/follow tables
-    
-    // Counter Cache Fields (for performance optimization)
-    likesCount: p.integer().default(0),
-    followersCount: p.integer().default(0),
-    
-    // Audit Fields
-    lastUpdatedBy: () => p.manyToOne(UserSchema).nullable(),
-  },
-});
+@Entity()
+@Index({ properties: ['village'] })
+export class StationSchema extends BaseSchema {
+  @Property({ unique: true, length: 48 })
+  osmRef!: string;
 
-export type IStation = InferEntity<typeof StationSchema>;
+  @Property({ length: 255, nullable: true })
+  name?: string;
+
+  @Property({ length: 191, nullable: true })
+  brand?: string;
+
+  @Property()
+  lat!: number;
+
+  @Property()
+  lng!: number;
+
+  @ManyToOne(() => DivisionSchema, { nullable: true })
+  division?: DivisionSchema;
+
+  @ManyToOne(() => DistrictSchema, { nullable: true })
+  district?: DistrictSchema;
+
+  @ManyToOne(() => SubDistrictSchema, { nullable: true })
+  subDistrict?: SubDistrictSchema;
+
+  @Property({ length: 191, nullable: true })
+  village?: string;
+
+  @Property({ type: 'json', nullable: true })
+  tags?: any;
+
+  @Property({ length: 500, nullable: true })
+  avatar?: string;
+
+  @Property({ type: 'json', nullable: true })
+  fuelTypes?: any;
+
+  @Property({ type: 'json', nullable: true })
+  prices?: any;
+
+  @Property({ type: 'string', default: FuelStatus.OUT_OF_STOCK })
+  status!: FuelStatus;
+
+  @Property({ type: 'string', default: QueueStatus.LOW })
+  queueStatus!: QueueStatus;
+
+  @Property({ length: 10, nullable: true })
+  openingTime?: string;
+
+  @Property({ length: 500, nullable: true })
+  googleMapLink?: string;
+
+  @Property({ type: 'text', nullable: true })
+  description?: string;
+
+  @Property({ type: 'text', nullable: true })
+  adminNote?: string;
+
+  @Property({ default: 0 })
+  likesCount = 0;
+
+  @Property({ default: 0 })
+  followersCount = 0;
+
+  @ManyToOne(() => UserSchema, { nullable: true })
+  lastUpdatedBy?: UserSchema;
+}
+
+export type IStation = StationSchema;
 
 /** Station Like Schema - tracks which users liked which stations */
-export const StationLikeSchema = defineEntity({
-  name: "StationLike",
-  extends: BaseSchema,
-  properties: {
-    station: () => p.manyToOne(StationSchema),
-    user: () => p.manyToOne(UserSchema),
-  },
-  indexes: [
-    { properties: ['station', 'user'] },
-  ],
-});
+@Entity()
+@Index({ properties: ['station', 'user'] })
+export class StationLikeSchema extends BaseSchema {
+  @ManyToOne(() => StationSchema)
+  station!: StationSchema;
 
-export type IStationLike = InferEntity<typeof StationLikeSchema>;
+  @ManyToOne(() => UserSchema)
+  user!: UserSchema;
+}
+
+export type IStationLike = StationLikeSchema;
 
 /** Station Follow Schema - tracks which users follow which stations */
-export const StationFollowSchema = defineEntity({
-  name: "StationFollow",
-  extends: BaseSchema,
-  properties: {
-    station: () => p.manyToOne(StationSchema),
-    user: () => p.manyToOne(UserSchema),
-  },
-  indexes: [
-    { properties: ['station', 'user'] },
-  ],
-});
-  
-export type IStationFollow = InferEntity<typeof StationFollowSchema>;
+@Entity()
+@Index({ properties: ['station', 'user'] })
+export class StationFollowSchema extends BaseSchema {
+  @ManyToOne(() => StationSchema)
+  station!: StationSchema;
+
+  @ManyToOne(() => UserSchema)
+  user!: UserSchema;
+}
+
+export type IStationFollow = StationFollowSchema;
 
 /** Comment Schema for station comments */
-export const CommentSchema = defineEntity({
-  name: "Comment",
-  extends: BaseSchema,
-  properties: {
-    text: p.text(),
-    station: () => p.manyToOne(StationSchema),
-    user: () => p.manyToOne(UserSchema), 
-    parent: () => p.manyToOne(CommentSchema).nullable(),
-  },
-});
+@Entity()
+export class CommentSchema extends BaseSchema {
+  @Property({ type: 'text' })
+  text!: string;
 
-export type IComment = InferEntity<typeof CommentSchema>;
+  @ManyToOne(() => StationSchema)
+  station!: StationSchema;
+
+  @ManyToOne(() => UserSchema)
+  user!: UserSchema;
+
+  @ManyToOne(() => CommentSchema, { nullable: true })
+  parent?: CommentSchema;
+}
+
+export type IComment = CommentSchema;

@@ -10,6 +10,7 @@ import { UserSchema, IUser } from "./entity/user.entity";
 import { CreateUserDto, UpdateUserDto } from "./dto/user.dto";
 import { LoginDto } from "./dto/logIn.dto";
 import * as bcrypt from "bcryptjs";
+import { Role } from "../utils/enums";
 
 interface ICreateUserDto extends CreateUserDto {
   createdAt?: Date;
@@ -21,7 +22,7 @@ interface IUpdateUserDto extends UpdateUserDto {
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly em: EntityManager) {}
+  constructor(private readonly em: EntityManager) { }
 
   // User Login
   async validateUser(loginDto: LoginDto): Promise<IUser> {
@@ -105,14 +106,14 @@ export class AuthService {
       dob: createUserDto.dob ? new Date(createUserDto.dob) : undefined,
       gender: createUserDto.gender,
       bloodGroup: createUserDto.bloodGroup,
-      role: createUserDto.role,
+      role: createUserDto.role as Role,
       trustScore: createUserDto.trustScore || 0,
       totalReports: createUserDto.totalReports || 0,
       correctReports: createUserDto.correctReports || 0,
       isVerified: createUserDto.isVerified || false,
       isBlocked: createUserDto.isBlocked || false,
       createdAt: new Date(),
-    });
+    } as any);
 
     await this.em.flush();
 
@@ -167,7 +168,7 @@ export class AuthService {
       user.address = updateUserDto.address;
     }
     if (updateUserDto.dob !== undefined) {
-      user.dob = updateUserDto.dob ? new Date(updateUserDto.dob) : null;
+      user.dob = updateUserDto.dob ? new Date(updateUserDto.dob) : undefined;
     }
     if (updateUserDto.gender !== undefined) {
       user.gender = updateUserDto.gender;

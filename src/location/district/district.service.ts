@@ -65,7 +65,7 @@ export class DistrictService {
       description: dto.description ?? "",
       division,
       isActive: dto.isActive ?? true,
-    });
+    } as any);
     await this.em.flush();
     return row;
   }

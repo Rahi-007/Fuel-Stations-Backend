@@ -22,9 +22,3 @@ export enum BloodGroup {
   O_POS = "O+",
   O_NEG = "O-",
 }
-
-// Enums for user status
-export enum UserStatus {
-  Active = "active",
-  Inactive = "inactive",
-}

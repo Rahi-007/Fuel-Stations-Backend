@@ -1,11 +1,13 @@
-import { defineEntity, p } from '@mikro-orm/core';
+import { Entity, PrimaryKey, Property } from '@mikro-orm/core';
 
-export const BaseSchema = defineEntity({
-  name: 'BaseEntity',
-  abstract: true,
-  properties: {
-    id: p.integer().primary(),
-    createdAt: p.datetime().onCreate(() => new Date()),
-    updatedAt: p.datetime().onCreate(() => new Date()).onUpdate(() => new Date()),
-  },
-});
+@Entity({ abstract: true })
+export abstract class BaseSchema {
+  @PrimaryKey()
+  id!: number;
+
+  @Property({ onCreate: () => new Date() })
+  createdAt!: Date;
+
+  @Property({ onCreate: () => new Date(), onUpdate: () => new Date() })
+  updatedAt!: Date;
+}

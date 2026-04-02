@@ -33,11 +33,10 @@ export default defineConfig({
     defaultSeeder: "Seed",
   },
   driverOptions: {
-    // Only add SSL if using production / cloud DB
-    ssl:
-      process.env.NODE_ENV === "production" ||
-      process.env.DATABASE_URL?.includes("neon.tech")
-        ? { rejectUnauthorized: false }
-        : false,
+    connection: {
+      ssl: {
+        rejectUnauthorized: false,
+      },
+    },
   },
 });
