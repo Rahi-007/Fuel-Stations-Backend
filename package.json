@@ -1,18 +1,18 @@
 {
   "name": "fuel_map",
-  "type": "module",
   "version": "1.0.0",
-  "description": "Backend API for FuelMap.bd",
+  "description": "Backend API for FuelMap.bd - Find fuel stations and real-time fuel availability in Bangladesh",
   "author": "Bisakto Rahi",
   "private": true,
   "license": "MIT",
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/src/main.js",
+    "start": "nest start",
     "start:dev": "nest start --watch",
+    "start:dev2": "nest start --watch --ignoreDeprecations 6.0",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "seed": "ts-node src/config/seed.ts --refresh",
-    "seed:sync": "ts-node src/config/seed.ts"
+    "build": "nest build",
+    "seed": "npx ts-node src/config/seed.ts --refresh",
+    "seed:sync": "npx ts-node src/config/seed.ts"
   },
   "dependencies": {
     "@mikro-orm/core": "^7.0.5",

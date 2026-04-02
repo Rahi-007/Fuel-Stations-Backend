@@ -6,9 +6,9 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { EntityManager } from "@mikro-orm/core";
-import { UserSchema, IUser } from "./entity/user.entity.js";
-import { CreateUserDto, UpdateUserDto } from "./dto/user.dto.js";
-import { LoginDto } from "./dto/logIn.dto.js";
+import { UserSchema, IUser } from "./entity/user.entity";
+import { CreateUserDto, UpdateUserDto } from "./dto/user.dto";
+import { LoginDto } from "./dto/logIn.dto";
 import * as bcrypt from "bcryptjs";
 
 interface ICreateUserDto extends CreateUserDto {
@@ -198,7 +198,7 @@ export class AuthService {
     }
 
     // Update timestamp
-    // user.updatedAt = new Date();
+    user.updatedAt = new Date();
 
     // if (updateUserDto. !== undefined) {
     //   user.status = updateUserDto.status;

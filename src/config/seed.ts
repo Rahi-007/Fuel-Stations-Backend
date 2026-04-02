@@ -1,6 +1,6 @@
-import mikroOrmConfig from "./mikro-orm.config.js";
-import { UserSchema } from "../auth/entity/user.entity.js";
-import { Role, UserStatus } from "../utils/enums.js";
+import mikroOrmConfig from "./mikro-orm.config";
+import { UserSchema } from "../auth/entity/user.entity";
+import { Role, UserStatus } from "../utils/enums";
 import * as bcrypt from "bcryptjs";
 import * as dotenv from "dotenv";
 import { MikroORM } from "@mikro-orm/postgresql";
