@@ -2,13 +2,10 @@ services:
   - type: web
     name: fuel-stations-backend
     env: node
-    buildCommand: npm install; npm run build
-    startCommand: npm run start
+    buildCommand: npm install && npm run build
+    startCommand: node dist/src/main.js
     envVars:
       - key: NODE_VERSION
         value: 20.11.0
       - key: NODE_ENV
         value: production
-    disk:
-      name: node_modules
-      mountPath: /opt/render/project/src/node_modules
