@@ -6,12 +6,12 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "start": "node dist/src/main.js",
+    "start": "nest start --ignoreDeprecations 6.0",
+    "start:prod": "node --loader ts-node/esm --experimental-specifier-resolution=node src/main.ts",
     "start:dev": "nest start --watch",
     "start:dev2": "nest start --watch --ignoreDeprecations 6.0",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "build": "tsc",
-    "postbuild": "cp -r src/config dist/src/ || copy src\\config dist\\src\\",
+    "build": "nest build --ignoreDeprecations 6.0",
     "seed": "npx ts-node src/config/seed.ts --refresh",
     "seed:sync": "npx ts-node src/config/seed.ts"
   },

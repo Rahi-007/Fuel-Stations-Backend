@@ -3,7 +3,7 @@ services:
     name: fuel-stations-backend
     env: node
     buildCommand: npm install; npm run build
-    startCommand: node dist/src/main.js
+    startCommand: npm run start
     envVars:
       - key: NODE_VERSION
         value: 20.11.0
