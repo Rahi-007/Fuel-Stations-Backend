@@ -10,7 +10,7 @@
     "start:dev": "nest start --watch",
     "start:dev2": "nest start --watch --ignoreDeprecations 6.0",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "build": "nest build",
+    "build": "npx nest build",
     "seed": "npx ts-node src/config/seed.ts --refresh",
     "seed:sync": "npx ts-node src/config/seed.ts"
   },
