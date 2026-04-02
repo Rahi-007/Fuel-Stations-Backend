@@ -1,6 +1,6 @@
 import { defineEntity, type InferEntity, p } from '@mikro-orm/core';
-import { BloodGroup, Gender, Role, UserStatus } from "../../utils/enums";
-import { BaseSchema } from "./base.entity";
+import { BloodGroup, Gender, Role, UserStatus } from "../../utils/enums.js";
+import { BaseSchema } from "./base.entity.js";
 
 export const UserSchema = defineEntity({
   name: 'User',
