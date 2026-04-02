@@ -672,3 +672,45 @@ export class CommentRes {
   @ApiProperty({ example: 1 })
   stationId!: number;
 }
+
+/** Query parameters for getting comments with filtering and pagination */
+export class GetCommentsQueryDto {
+  @IsOptional()
+  @IsEnum(['all', 'my', 'newest', 'oldest', 'mostReply'])
+  @ApiPropertyOptional({
+    enum: ['all', 'my', 'newest', 'oldest', 'mostReply'],
+    description: 'Filter type for comments',
+    example: 'newest',
+    default: 'all',
+  })
+  filter?: 'all' | 'my' | 'newest' | 'oldest' | 'mostReply';
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @ApiPropertyOptional({
+    description: 'Page number for pagination',
+    example: 1,
+    default: 1,
+  })
+  page?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  @ApiPropertyOptional({
+    description: 'Number of comments per page',
+    example: 30,
+    default: 30,
+  })
+  limit?: number;
+
+  @IsOptional()
+  @IsInt()
+  @ApiPropertyOptional({
+    description: 'User ID for "my comments" filter (from JWT token)',
+    example: 5,
+  })
+  userId?: number;
+}

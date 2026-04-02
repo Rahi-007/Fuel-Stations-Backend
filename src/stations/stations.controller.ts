@@ -24,6 +24,7 @@ import {
   CreateStationLikeDto,
   FuelPricesDto,
   FuelTypesDto,
+  GetCommentsQueryDto,
   NearbyStationsQueryDto,
   NearbyStationsResDto,
   StationAdminRefDto,
@@ -225,11 +226,18 @@ export class StationsController {
   }
 
   @Get(":id/comments")
-  @ApiOperation({ summary: "Get comments by station ID" })
+  @ApiOperation({ 
+    summary: "Get comments by station ID with filtering and pagination",
+    description: "Supports filters: all, my, newest, oldest, mostReply. Default: 30 comments per page."
+  })
+  @ApiQuery({ name: "filter", required: false, enum: ['all', 'my', 'newest', 'oldest', 'mostReply'], example: 'newest' })
+  @ApiQuery({ name: "page", required: false, example: 1 })
+  @ApiQuery({ name: "limit", required: false, example: 30 })
   async getCommentsByStation(
-    @Param("id", ParseIntPipe) stationId: number
-  ): Promise<CommentRes[]> {
-    return this.stationsService.getCommentsByStation(stationId);
+    @Param("id", ParseIntPipe) stationId: number,
+    @Query() query?: GetCommentsQueryDto
+  ): Promise<{ data: CommentRes[]; total: number; page: number; limit: number }> {
+    return this.stationsService.getCommentsByStation(stationId, query);
   }
 
   stationRowToResponse(row: IStation): StationRes {

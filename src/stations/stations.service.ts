@@ -33,6 +33,7 @@ import {
   type CreateCommentDto,
   FuelPricesDto,
   FuelTypesDto,
+  GetCommentsQueryDto,
   StationAdminRefDto,
   StationRes,
   type UserRefDto,
@@ -63,11 +64,13 @@ export interface FuelStationFromOsm {
   district: string | null;
   subDistrict: string | null;
   village: string | null;
+  status?: string | null; // Add status field
 }
 
 /** After DB sync — includes internal primary key. */
 export interface FuelStationResponse extends FuelStationFromOsm {
   id: number;
+  status?: string | null; // Add status field
 }
 
 export interface NearbyStationsResult {
@@ -819,11 +822,20 @@ out center;`;
     return this.mapCommentToRes(comment);
   }
 
-  async getCommentsByStation(stationId: number): Promise<CommentRes[]> {
+  async getCommentsByStation(
+    stationId: number,
+    query?: GetCommentsQueryDto
+  ): Promise<{ data: CommentRes[]; total: number; page: number; limit: number }> {
     const station = await this.em.findOne(StationSchema, { id: stationId });
     if (!station) throw new NotFoundException(`Station with ID ${stationId} not found`);
 
-    const comments = await this.em.find(
+    const filter = query?.filter || 'all';
+    const page = query?.page || 1;
+    const limit = Math.min(Math.max(query?.limit || 30, 1), 100);
+    const userId = query?.userId;
+
+    // Get ALL comments (both parents and replies) for this station
+    const allComments = await this.em.find(
       CommentSchema,
       { station },
       {
@@ -832,7 +844,72 @@ out center;`;
       }
     );
 
-    return comments.map((comment) => this.mapCommentToRes(comment));
+    // Separate parent comments (top-level) and replies
+    const commentIdSet = new Set(allComments.map((c) => c.id));
+    let topLevelComments = allComments.filter(
+      (c) => !c.parent || !commentIdSet.has(c.parent.id)
+    );
+
+    // Apply filters ONLY to top-level comments
+    if (filter === 'my' && userId) {
+      topLevelComments = topLevelComments.filter((c) => c.user.id === userId);
+    } else if (filter === 'newest') {
+      topLevelComments = [...topLevelComments].sort(
+        (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+      );
+    } else if (filter === 'oldest') {
+      topLevelComments = [...topLevelComments].sort(
+        (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
+      );
+    } else if (filter === 'mostReply') {
+      topLevelComments = [...topLevelComments].sort((a, b) => {
+        const replyCountA = allComments.filter((c) => c.parent?.id === a.id).length;
+        const replyCountB = allComments.filter((c) => c.parent?.id === b.id).length;
+        return replyCountB - replyCountA;
+      });
+    } else if (filter === 'all') {
+      // Default: newest first
+      topLevelComments = [...topLevelComments].sort(
+        (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+      );
+    }
+
+    const total = topLevelComments.length;
+    const offset = (page - 1) * limit;
+    const paginatedTopLevel = topLevelComments.slice(offset, offset + limit);
+
+    // IMPORTANT: Include ALL replies (nested) for the paginated parent comments
+    // This ensures frontend can display complete threads with all nested replies
+    const parentIds = new Set(paginatedTopLevel.map((c) => c.id));
+    
+    // Helper function to recursively find all replies for given parent IDs
+    const findAllRepliesRecursive = (parentCommentIds: Set<number>, depth = 0): IComment[] => {
+      if (parentCommentIds.size === 0 || depth > 20) return []; // Prevent infinite recursion
+      
+      const directReplies = allComments.filter(
+        (c) => c.parent && parentCommentIds.has(c.parent.id)
+      );
+      
+      if (directReplies.length === 0) return [];
+      
+      // Find replies to these replies (recursive)
+      const replyIds = new Set(directReplies.map((c) => c.id));
+      const nestedReplies = findAllRepliesRecursive(replyIds, depth + 1);
+      
+      return [...directReplies, ...nestedReplies];
+    };
+    
+    const allReplies = findAllRepliesRecursive(parentIds);
+    
+    // Combine paginated parents with ALL their nested replies
+    const resultComments = [...paginatedTopLevel, ...allReplies];
+
+    return {
+      data: resultComments.map((comment) => this.mapCommentToRes(comment)),
+      total,
+      page,
+      limit,
+    };
   }
 
   private mapCommentToRes(comment: {
@@ -892,6 +969,7 @@ out center;`;
       district: this.relationName(r.district),
       subDistrict: this.relationName(r.subDistrict),
       village: r.village ?? null,
+      status: r.status ?? null, // Add status from database
     };
   }
   private stationRowToResponse2(row: IStation): StationRes {
