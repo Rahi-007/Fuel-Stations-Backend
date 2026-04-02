@@ -9,7 +9,7 @@ import { EntityManager } from "@mikro-orm/core";
 import { UserSchema, IUser } from "./entity/user.entity";
 import { CreateUserDto, UpdateUserDto } from "./dto/user.dto";
 import { LoginDto } from "./dto/logIn.dto";
-import * as bcrypt from "bcrypt";
+import * as bcrypt from "bcryptjs";
 
 interface ICreateUserDto extends CreateUserDto {
   createdAt?: Date;
