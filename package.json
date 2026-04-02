@@ -6,11 +6,11 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "start": "nest start",
+    "start": "node dist/src/main.js",
     "start:dev": "nest start --watch",
     "start:dev2": "nest start --watch --ignoreDeprecations 6.0",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "build": "npx nest build",
+    "build": "tsc && tsc-alias",
     "seed": "npx ts-node src/config/seed.ts --refresh",
     "seed:sync": "npx ts-node src/config/seed.ts"
   },
@@ -42,6 +42,7 @@
     "@nestjs/testing": "^11.1.17",
     "@types/node": "^25.5.0",
     "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.10",
     "typescript": "^6.0.2"
   }
 }
