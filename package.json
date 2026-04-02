@@ -19,6 +19,7 @@
     "@mikro-orm/core": "^7.0.5",
     "@mikro-orm/nestjs": "^7.0.1",
     "@mikro-orm/postgresql": "^7.0.5",
+    "@nestjs/cli": "^11.0.16",
     "@nestjs/common": "^11.1.17",
     "@nestjs/core": "^11.1.17",
     "@nestjs/jwt": "^11.0.2",
@@ -39,11 +40,9 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
-    "@nestjs/cli": "^11.0.16",
     "@nestjs/testing": "^11.1.17",
     "@types/node": "^25.5.0",
     "ts-node": "^10.9.2",
-    "tsc-alias": "^1.8.10",
     "typescript": "^6.0.2"
   }
 }
