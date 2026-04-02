@@ -109,7 +109,8 @@ export const CommentSchema = defineEntity({
   properties: {
     text: p.text(),
     station: () => p.manyToOne(StationSchema),
-    user: () => p.manyToOne(UserSchema),
+    user: () => p.manyToOne(UserSchema), 
+    parent: () => p.manyToOne(CommentSchema).nullable(),
   },
 });
 

@@ -12,6 +12,7 @@ import {
   StationFollowSchema,
   StationLikeSchema,
   StationSchema,
+  type IComment,
   type IStation,
 } from "./station.entity";
 import { extractAdminFromOsmTags } from "./osm-admin.util";
@@ -734,6 +735,16 @@ out center;`;
     await this.em.flush();
   }
 
+  async isLiked(userId: number, stationId: number): Promise<boolean> {
+    const station = await this.em.findOne(StationSchema, { id: stationId });
+    if (!station) throw new NotFoundException(`Station with ID ${stationId} not found`);
+    const user = await this.em.findOne(UserSchema, { id: userId });
+    if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
+
+    const existing = await this.em.findOne(StationLikeSchema, { station, user });
+    return !!existing;
+  }
+
   async followStation(userId: number, stationId: number): Promise<void> {
     const station = await this.em.findOne(StationSchema, { id: stationId });
     if (!station) throw new NotFoundException(`Station with ID ${stationId} not found`);
@@ -746,6 +757,16 @@ out center;`;
     this.em.create(StationFollowSchema, { station, user });
     station.followersCount = (station.followersCount ?? 0) + 1;
     await this.em.flush();
+  }
+
+  async isFollowed(userId: number, stationId: number): Promise<boolean> {
+    const station = await this.em.findOne(StationSchema, { id: stationId });
+    if (!station) throw new NotFoundException(`Station with ID ${stationId} not found`);
+    const user = await this.em.findOne(UserSchema, { id: userId });
+    if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
+
+    const existing = await this.em.findOne(StationFollowSchema, { station, user });
+    return !!existing;
   }
 
   async unfollowStation(userId: number, stationId: number): Promise<void> {
@@ -768,20 +789,34 @@ out center;`;
     const user = await this.em.findOne(UserSchema, { id: userId });
     if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
 
+    let parent: IComment | null = null;
+    if (dto.parentId != null) {
+      const row = await this.em.findOne(
+        CommentSchema,
+        { id: dto.parentId },
+        { populate: ["station"] as const }
+      );
+      if (!row) {
+        throw new NotFoundException(`Comment with ID ${dto.parentId} not found`);
+      }
+      if (row.station.id !== station.id) {
+        throw new BadRequestException(
+          "Reply must belong to the same station thread"
+        );
+      }
+      parent = row;
+    }
+
     const comment = this.em.create(CommentSchema, {
       text: dto.text,
       station,
       user,
+      parent: parent ?? undefined,
     });
     await this.em.flush();
+    await this.em.populate(comment, ["user", "station", "parent"] as const);
 
-    return {
-      id: comment.id,
-      text: comment.text,
-      createdAt: comment.createdAt,
-      userId: user.id,
-      stationId: station.id,
-    };
+    return this.mapCommentToRes(comment);
   }
 
   async getCommentsByStation(stationId: number): Promise<CommentRes[]> {
@@ -791,16 +826,47 @@ out center;`;
     const comments = await this.em.find(
       CommentSchema,
       { station },
-      { populate: ["user", "station"] as const, orderBy: { id: "DESC" } }
+      {
+        populate: ["user", "station", "parent"] as const,
+        orderBy: { createdAt: "asc" },
+      }
     );
 
-    return comments.map((comment) => ({
+    return comments.map((comment) => this.mapCommentToRes(comment));
+  }
+
+  private mapCommentToRes(comment: {
+    id: number;
+    text: string;
+    createdAt: Date;
+    user: {
+      id: number;
+      firstName: string;
+      lastName?: string | null;
+      avatar?: string | null;
+    };
+    station: { id: number };
+    parent?: { id: number } | null;
+  }): CommentRes {
+    const u = comment.user;
+    const displayName =
+      [u.firstName, u.lastName].filter(Boolean).join(" ").trim() ||
+      `User #${u.id}`;
+    return {
       id: comment.id,
       text: comment.text,
       createdAt: comment.createdAt,
-      userId: comment.user.id,
+      userId: u.id,
       stationId: comment.station.id,
-    }));
+      parentId: comment.parent?.id,
+      user: {
+        id: u.id,
+        firstName: u.firstName,
+        lastName: u.lastName ?? undefined,
+        name: displayName,
+        avatar: u.avatar ?? undefined,
+      },
+    };
   }
 
   private stationRowToResponse(r: IStation): FuelStationResponse {

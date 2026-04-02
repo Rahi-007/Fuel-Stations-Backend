@@ -190,6 +190,30 @@ export class StationsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get(":id/like-status")
+  @ApiOperation({ summary: "Check if current user liked a station" })
+  async getLikeStatus(
+    @Param("id", ParseIntPipe) stationId: number,
+    @Request() req: { user?: { sub?: unknown; id?: unknown } }
+  ): Promise<{ liked: boolean }> {
+    const userId = this.extractUserId(req);
+    const liked = await this.stationsService.isLiked(userId, stationId);
+    return { liked };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(":id/follow-status")
+  @ApiOperation({ summary: "Check if current user followed a station" })
+  async getFollowStatus(
+    @Param("id", ParseIntPipe) stationId: number,
+    @Request() req: { user?: { sub?: unknown; id?: unknown } }
+  ): Promise<{ followed: boolean }> {
+    const userId = this.extractUserId(req);
+    const followed = await this.stationsService.isFollowed(userId, stationId);
+    return { followed };
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post("comment")
   @ApiOperation({ summary: "Create station comment" })
   async createComment(

@@ -577,6 +577,16 @@ export class CreateCommentDto {
   @IsInt()
   @ApiProperty({ description: "Station ID", example: 1 })
   stationId!: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @ApiPropertyOptional({
+    description: "Parent comment ID for nested replies (same station)",
+    example: 12,
+  })
+  parentId?: number;
 }
 
 /** DTO for updating a comment */
@@ -590,12 +600,51 @@ export class UpdateCommentDto {
   text?: string;
 }
 
+/** Comment author (public fields for thread UI) */
+export class CommentUserRes {
+  @Expose()
+  @IsInt()
+  @ApiProperty({ example: 5 })
+  id!: number;
+
+  @Expose()
+  @IsString()
+  @ApiProperty({ example: "Rahi" })
+  firstName!: string;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  @ApiPropertyOptional({ example: "Ahmed" })
+  lastName?: string;
+
+  @Expose()
+  @IsString()
+  @ApiProperty({ example: "Rahi Ahmed", description: "Display name" })
+  name!: string;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  @ApiPropertyOptional({ example: "https://example.com/a.jpg" })
+  avatar?: string;
+}
+
 /** Response DTO for a comment */
 export class CommentRes {
   @Expose()
   @IsInt()
   @ApiProperty({ example: 1 })
   id!: number;
+
+  @Expose()
+  @IsOptional()
+  @IsInt()
+  @ApiPropertyOptional({
+    example: 12,
+    description: "Set when this comment is a reply to another",
+  })
+  parentId?: number;
 
   @Expose()
   @IsString()
@@ -611,6 +660,12 @@ export class CommentRes {
   @IsInt()
   @ApiProperty({ example: 5, description: "User ID who commented" })
   userId!: number;
+
+  @Expose()
+  @ValidateNested()
+  @Type(() => CommentUserRes)
+  @ApiProperty({ type: CommentUserRes })
+  user!: CommentUserRes;
 
   @Expose()
   @IsInt()
