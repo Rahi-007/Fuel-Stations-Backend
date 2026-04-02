@@ -6,9 +6,9 @@
   "private": true,
   "license": "MIT",
   "scripts": {
+    "build": "npx nest build",
     "start": "node dist/src/main.js",
     "start:dev": "nest start --watch",
-    "build": "nest build",
     "seed": "npx ts-node src/config/seed.ts --refresh",
     "seed:sync": "npx ts-node src/config/seed.ts"
   },

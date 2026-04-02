@@ -31,10 +31,10 @@ export class StationSchema extends BaseSchema {
   @Property({ length: 191, nullable: true })
   brand?: string;
 
-  @Property()
+  @Property({ columnType: 'decimal', precision: 10, scale: 7 })
   lat!: number;
 
-  @Property()
+  @Property({ columnType: 'decimal', precision: 10, scale: 7 })
   lng!: number;
 
   @ManyToOne(() => DivisionSchema, { nullable: true })
