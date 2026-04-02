@@ -16,7 +16,7 @@ async function bootstrap() {
 
     // CORS configuration
     app.enableCors({
-      origin: process.env.CORS_ORIGIN || "https://fuel-stations-kappa.vercel.app",
+      origin: "https://fuel-stations-kappa.vercel.app",
       credentials: true,
     });
 
