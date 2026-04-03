@@ -7,6 +7,7 @@ import { CustomJwtModule } from "./config/jwt/jwt.module";
 import { AuthModule } from "./auth/auth.module";
 import { StationsModule } from "./stations/stations.module";
 import { LocationModule } from "./location/location.module";
+import { UploadModule } from "./upload/upload.module";
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { LocationModule } from "./location/location.module";
     AuthModule,
     StationsModule,
     LocationModule,
+    UploadModule,
   ],
   controllers: [AppController],
   providers: [AppService],
