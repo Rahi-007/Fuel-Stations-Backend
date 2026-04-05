@@ -2,7 +2,7 @@ import * as dotenv from "dotenv";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
-import { Logger } from "@nestjs/common";
+import { Logger, ValidationPipe } from "@nestjs/common";
 import cookieParser from "cookie-parser";
 
 // Load environment variables
@@ -16,7 +16,7 @@ async function bootstrap() {
 
     // CORS configuration
     app.enableCors({
-      origin: "https://fuel-stations-kappa.vercel.app",
+      origin: "http://localhost:3000",
       credentials: true,
     });
 
@@ -31,7 +31,9 @@ async function bootstrap() {
     // Swagger configuration
     const config = new DocumentBuilder()
       .setTitle("FuelMap.bd")
-      .setDescription("API documentation for FuelMap.bd - Find nearby fuel stations in Bangladesh")
+      .setDescription(
+        "API documentation for FuelMap.bd - Find nearby fuel stations in Bangladesh"
+      )
       .setVersion("1.0.0")
       .addBearerAuth(
         {

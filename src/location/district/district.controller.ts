@@ -37,8 +37,6 @@ import { Roles } from "../../auth/decorators/roles.decorator";
 @ApiTags("Locations — Districts")
 @Controller("districts")
 @ApiBearerAuth("JWT-auth")
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
 export class DistrictController {
   constructor(private readonly districtService: DistrictService) {}
 

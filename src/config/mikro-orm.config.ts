@@ -5,6 +5,7 @@ import { StationSchema, StationLikeSchema, StationFollowSchema, CommentSchema } 
 import { DivisionSchema } from "../location/entity/division.entity";
 import { DistrictSchema } from "../location/entity/district.entity";
 import { SubDistrictSchema } from "../location/entity/subDistrict.entity";
+import { StationUpdateRequestSchema } from "../stations/station-update-request.entity";
 
 dotenv.config();
 
@@ -18,6 +19,7 @@ export default defineConfig({
     DistrictSchema,
     SubDistrictSchema,
     StationSchema,
+    StationUpdateRequestSchema,
     StationLikeSchema,
     StationFollowSchema,
     CommentSchema,

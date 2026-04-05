@@ -16,6 +16,7 @@ import {
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Expose, Transform, Type } from "class-transformer";
 import { FuelStatus, QueueStatus } from "./station.entity";
+import { UpdateRequestStatus } from "./station-update-request.entity";
 
 /** DTO for fuel types with proper validation */
 export class FuelTypesDto {
@@ -126,7 +127,10 @@ export class CreateStationDto {
 export class UpdateStationDto {
   @IsString()
   @IsOptional()
-  @ApiPropertyOptional({ description: "Station Name", example: "Padma Fuel Station" })
+  @ApiPropertyOptional({
+    description: "Station Name",
+    example: "Padma Fuel Station",
+  })
   name?: string;
 
   @IsString()
@@ -146,12 +150,20 @@ export class UpdateStationDto {
 
   @IsInt()
   @IsOptional()
-  @ApiPropertyOptional({ description: "Division ID", example: 1, nullable: true })
+  @ApiPropertyOptional({
+    description: "Division ID",
+    example: 1,
+    nullable: true,
+  })
   divisionId?: number | null;
 
   @IsInt()
   @IsOptional()
-  @ApiPropertyOptional({ description: "District ID", example: 10, nullable: true })
+  @ApiPropertyOptional({
+    description: "District ID",
+    example: 10,
+    nullable: true,
+  })
   districtId?: number | null;
 
   @IsInt()
@@ -423,7 +435,10 @@ export class StationRes {
   @ValidateNested()
   @Type(() => UserRefDto)
   @IsOptional()
-  @ApiPropertyOptional({ type: UserRefDto, description: "User who last updated the station" })
+  @ApiPropertyOptional({
+    type: UserRefDto,
+    description: "User who last updated the station",
+  })
   lastUpdatedBy?: UserRefDto;
 }
 
@@ -439,9 +454,7 @@ export class NearbyStationsQueryDto {
   lng!: number;
 
   @Transform(({ value }) =>
-    value === undefined || value === null || value === ""
-      ? 5000
-      : Number(value)
+    value === undefined || value === null || value === "" ? 5000 : Number(value)
   )
   @IsInt()
   @Min(100)
@@ -676,20 +689,20 @@ export class CommentRes {
 /** Query parameters for getting comments with filtering and pagination */
 export class GetCommentsQueryDto {
   @IsOptional()
-  @IsEnum(['all', 'my', 'newest', 'oldest', 'mostReply'])
+  @IsEnum(["all", "my", "newest", "oldest", "mostReply"])
   @ApiPropertyOptional({
-    enum: ['all', 'my', 'newest', 'oldest', 'mostReply'],
-    description: 'Filter type for comments',
-    example: 'newest',
-    default: 'all',
+    enum: ["all", "my", "newest", "oldest", "mostReply"],
+    description: "Filter type for comments",
+    example: "newest",
+    default: "all",
   })
-  filter?: 'all' | 'my' | 'newest' | 'oldest' | 'mostReply';
+  filter?: "all" | "my" | "newest" | "oldest" | "mostReply";
 
   @IsOptional()
   @IsInt()
   @Min(1)
   @ApiPropertyOptional({
-    description: 'Page number for pagination',
+    description: "Page number for pagination",
     example: 1,
     default: 1,
   })
@@ -700,7 +713,7 @@ export class GetCommentsQueryDto {
   @Min(1)
   @Max(100)
   @ApiPropertyOptional({
-    description: 'Number of comments per page',
+    description: "Number of comments per page",
     example: 30,
     default: 30,
   })
@@ -713,4 +726,111 @@ export class GetCommentsQueryDto {
     example: 5,
   })
   userId?: number;
+}
+
+/** DTO for creating a station update request */
+export class CreateStationUpdateRequestDto {
+  @IsInt()
+  @ApiProperty({ description: "Station ID", example: 1 })
+  stationId!: number;
+
+  @IsObject()
+  @ApiProperty({
+    description: "Proposed changes to the station",
+    example: { name: "Updated Station Name", status: "available" },
+  })
+  changes!: Record<string, any>;
+}
+
+/** DTO for updating a station update request (admin approval/rejection) */
+export class UpdateStationUpdateRequestDto {
+  @IsEnum(UpdateRequestStatus)
+  @ApiProperty({
+    enum: UpdateRequestStatus,
+    description: "New status for the update request",
+    example: UpdateRequestStatus.APPROVED,
+  })
+  status!: UpdateRequestStatus;
+
+  @IsString()
+  @IsOptional()
+  @ApiPropertyOptional({
+    description: "Admin note explaining the decision",
+    example: "Changes look good, approved.",
+  })
+  adminNote?: string;
+}
+
+/** Response DTO for a station update request */
+export class StationUpdateRequestRes {
+  @Expose()
+  @IsInt()
+  @ApiProperty({ example: 1 })
+  id!: number;
+
+  @Expose()
+  @IsInt()
+  @ApiProperty({ example: 1 })
+  stationId!: number;
+
+  @Expose()
+  @IsInt()
+  @ApiProperty({ example: 5 })
+  requestedById!: number;
+
+  @Expose()
+  @ValidateNested()
+  @Type(() => UserRefDto)
+  @ApiProperty({ type: UserRefDto })
+  requestedBy!: UserRefDto;
+
+  @Expose()
+  @IsObject()
+  @ApiProperty({
+    example: { name: "Updated Station Name", status: "available" },
+  })
+  changes!: Record<string, any>;
+
+  @Expose()
+  @IsEnum(UpdateRequestStatus)
+  @ApiProperty({
+    enum: UpdateRequestStatus,
+    example: UpdateRequestStatus.PENDING,
+  })
+  status!: UpdateRequestStatus;
+
+  @Expose()
+  @IsString()
+  @IsOptional()
+  @ApiPropertyOptional({ example: "Admin note here" })
+  adminNote?: string;
+
+  @Expose()
+  @IsInt()
+  @IsOptional()
+  @ApiPropertyOptional({ example: 2 })
+  reviewedById?: number;
+
+  @Expose()
+  @ValidateNested()
+  @Type(() => UserRefDto)
+  @IsOptional()
+  @ApiPropertyOptional({ type: UserRefDto })
+  reviewedBy?: UserRefDto;
+
+  @Expose()
+  @IsDate()
+  @IsOptional()
+  @ApiPropertyOptional({ example: "2024-01-15T10:30:00Z" })
+  reviewedAt?: Date;
+
+  @Expose()
+  @IsDate()
+  @ApiProperty({ example: "2024-01-15T10:30:00Z" })
+  createdAt!: Date;
+
+  @Expose()
+  @IsDate()
+  @ApiProperty({ example: "2024-01-15T10:30:00Z" })
+  updatedAt!: Date;
 }

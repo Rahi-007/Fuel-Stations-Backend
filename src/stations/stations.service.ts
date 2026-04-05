@@ -15,6 +15,11 @@ import {
   type IComment,
   type IStation,
 } from "./station.entity";
+import {
+  StationUpdateRequestSchema,
+  type IStationUpdateRequest,
+  UpdateRequestStatus,
+} from "./station-update-request.entity";
 import { extractAdminFromOsmTags } from "./osm-admin.util";
 import {
   DivisionSchema,
@@ -31,13 +36,16 @@ import {
 import {
   type CommentRes,
   type CreateCommentDto,
+  CreateStationUpdateRequestDto,
   FuelPricesDto,
   FuelTypesDto,
   GetCommentsQueryDto,
   StationAdminRefDto,
   StationRes,
+  StationUpdateRequestRes,
   type UserRefDto,
   UpdateStationDto,
+  UpdateStationUpdateRequestDto,
 } from "./station.dto";
 import { UserSchema } from "../auth/entity/user.entity";
 
@@ -563,7 +571,12 @@ out center;`;
       limit,
       offset,
       orderBy: { id: "DESC" },
-      populate: ["division", "district", "subDistrict", "lastUpdatedBy"] as const,
+      populate: [
+        "division",
+        "district",
+        "subDistrict",
+        "lastUpdatedBy",
+      ] as const,
     });
 
     return {
@@ -579,7 +592,12 @@ out center;`;
       StationSchema,
       { id },
       {
-        populate: ["division", "subDistrict", "district", "lastUpdatedBy"] as const,
+        populate: [
+          "division",
+          "subDistrict",
+          "district",
+          "lastUpdatedBy",
+        ] as const,
       }
     );
     if (!row) {
@@ -642,7 +660,8 @@ out center;`;
     if (dto.village !== undefined) row.village = dto.village;
     if (dto.tags !== undefined) row.tags = dto.tags;
     if (dto.avatar !== undefined) row.avatar = dto.avatar;
-    if (dto.fuelTypes !== undefined) row.fuelTypes = dto.fuelTypes as unknown as object;
+    if (dto.fuelTypes !== undefined)
+      row.fuelTypes = dto.fuelTypes as unknown as object;
     if (dto.prices !== undefined) row.prices = dto.prices as unknown as object;
     if (dto.status !== undefined) row.status = dto.status;
     if (dto.queueStatus !== undefined) row.queueStatus = dto.queueStatus;
@@ -657,7 +676,12 @@ out center;`;
       StationSchema,
       { id },
       {
-        populate: ["division", "district", "subDistrict", "lastUpdatedBy"] as const,
+        populate: [
+          "division",
+          "district",
+          "subDistrict",
+          "lastUpdatedBy",
+        ] as const,
       }
     );
 
@@ -694,7 +718,9 @@ out center;`;
     this.validateRelationConsistency(row);
     this.applyBasicFields(row, dto);
     if (dto.lastUpdatedById !== undefined) {
-      const user = await this.em.findOne(UserSchema, { id: dto.lastUpdatedById });
+      const user = await this.em.findOne(UserSchema, {
+        id: dto.lastUpdatedById,
+      });
       if (!user) {
         throw new NotFoundException(
           `User with ID ${dto.lastUpdatedById} not found`
@@ -712,11 +738,15 @@ out center;`;
 
   async likeStation(userId: number, stationId: number): Promise<void> {
     const station = await this.em.findOne(StationSchema, { id: stationId });
-    if (!station) throw new NotFoundException(`Station with ID ${stationId} not found`);
+    if (!station)
+      throw new NotFoundException(`Station with ID ${stationId} not found`);
     const user = await this.em.findOne(UserSchema, { id: userId });
     if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
 
-    const existing = await this.em.findOne(StationLikeSchema, { station, user });
+    const existing = await this.em.findOne(StationLikeSchema, {
+      station,
+      user,
+    });
     if (existing) return;
 
     this.em.create(StationLikeSchema, { station, user } as any);
@@ -726,11 +756,15 @@ out center;`;
 
   async unlikeStation(userId: number, stationId: number): Promise<void> {
     const station = await this.em.findOne(StationSchema, { id: stationId });
-    if (!station) throw new NotFoundException(`Station with ID ${stationId} not found`);
+    if (!station)
+      throw new NotFoundException(`Station with ID ${stationId} not found`);
     const user = await this.em.findOne(UserSchema, { id: userId });
     if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
 
-    const existing = await this.em.findOne(StationLikeSchema, { station, user });
+    const existing = await this.em.findOne(StationLikeSchema, {
+      station,
+      user,
+    });
     if (!existing) return;
 
     this.em.remove(existing);
@@ -740,21 +774,29 @@ out center;`;
 
   async isLiked(userId: number, stationId: number): Promise<boolean> {
     const station = await this.em.findOne(StationSchema, { id: stationId });
-    if (!station) throw new NotFoundException(`Station with ID ${stationId} not found`);
+    if (!station)
+      throw new NotFoundException(`Station with ID ${stationId} not found`);
     const user = await this.em.findOne(UserSchema, { id: userId });
     if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
 
-    const existing = await this.em.findOne(StationLikeSchema, { station, user });
+    const existing = await this.em.findOne(StationLikeSchema, {
+      station,
+      user,
+    });
     return !!existing;
   }
 
   async followStation(userId: number, stationId: number): Promise<void> {
     const station = await this.em.findOne(StationSchema, { id: stationId });
-    if (!station) throw new NotFoundException(`Station with ID ${stationId} not found`);
+    if (!station)
+      throw new NotFoundException(`Station with ID ${stationId} not found`);
     const user = await this.em.findOne(UserSchema, { id: userId });
     if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
 
-    const existing = await this.em.findOne(StationFollowSchema, { station, user });
+    const existing = await this.em.findOne(StationFollowSchema, {
+      station,
+      user,
+    });
     if (existing) return;
 
     this.em.create(StationFollowSchema, { station, user } as any);
@@ -764,21 +806,29 @@ out center;`;
 
   async isFollowed(userId: number, stationId: number): Promise<boolean> {
     const station = await this.em.findOne(StationSchema, { id: stationId });
-    if (!station) throw new NotFoundException(`Station with ID ${stationId} not found`);
+    if (!station)
+      throw new NotFoundException(`Station with ID ${stationId} not found`);
     const user = await this.em.findOne(UserSchema, { id: userId });
     if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
 
-    const existing = await this.em.findOne(StationFollowSchema, { station, user });
+    const existing = await this.em.findOne(StationFollowSchema, {
+      station,
+      user,
+    });
     return !!existing;
   }
 
   async unfollowStation(userId: number, stationId: number): Promise<void> {
     const station = await this.em.findOne(StationSchema, { id: stationId });
-    if (!station) throw new NotFoundException(`Station with ID ${stationId} not found`);
+    if (!station)
+      throw new NotFoundException(`Station with ID ${stationId} not found`);
     const user = await this.em.findOne(UserSchema, { id: userId });
     if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
 
-    const existing = await this.em.findOne(StationFollowSchema, { station, user });
+    const existing = await this.em.findOne(StationFollowSchema, {
+      station,
+      user,
+    });
     if (!existing) return;
 
     this.em.remove(existing);
@@ -786,9 +836,13 @@ out center;`;
     await this.em.flush();
   }
 
-  async createComment(userId: number, dto: CreateCommentDto): Promise<CommentRes> {
+  async createComment(
+    userId: number,
+    dto: CreateCommentDto
+  ): Promise<CommentRes> {
     const station = await this.em.findOne(StationSchema, { id: dto.stationId });
-    if (!station) throw new NotFoundException(`Station with ID ${dto.stationId} not found`);
+    if (!station)
+      throw new NotFoundException(`Station with ID ${dto.stationId} not found`);
     const user = await this.em.findOne(UserSchema, { id: userId });
     if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
 
@@ -800,7 +854,9 @@ out center;`;
         { populate: ["station"] as const }
       );
       if (!row) {
-        throw new NotFoundException(`Comment with ID ${dto.parentId} not found`);
+        throw new NotFoundException(
+          `Comment with ID ${dto.parentId} not found`
+        );
       }
       if (row.station.id !== station.id) {
         throw new BadRequestException(
@@ -825,11 +881,17 @@ out center;`;
   async getCommentsByStation(
     stationId: number,
     query?: GetCommentsQueryDto
-  ): Promise<{ data: CommentRes[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    data: CommentRes[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const station = await this.em.findOne(StationSchema, { id: stationId });
-    if (!station) throw new NotFoundException(`Station with ID ${stationId} not found`);
+    if (!station)
+      throw new NotFoundException(`Station with ID ${stationId} not found`);
 
-    const filter = query?.filter || 'all';
+    const filter = query?.filter || "all";
     const page = query?.page || 1;
     const limit = Math.min(Math.max(query?.limit || 30, 1), 100);
     const userId = query?.userId;
@@ -851,23 +913,27 @@ out center;`;
     );
 
     // Apply filters ONLY to top-level comments
-    if (filter === 'my' && userId) {
+    if (filter === "my" && userId) {
       topLevelComments = topLevelComments.filter((c) => c.user.id === userId);
-    } else if (filter === 'newest') {
+    } else if (filter === "newest") {
       topLevelComments = [...topLevelComments].sort(
         (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
       );
-    } else if (filter === 'oldest') {
+    } else if (filter === "oldest") {
       topLevelComments = [...topLevelComments].sort(
         (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
       );
-    } else if (filter === 'mostReply') {
+    } else if (filter === "mostReply") {
       topLevelComments = [...topLevelComments].sort((a, b) => {
-        const replyCountA = allComments.filter((c) => c.parent?.id === a.id).length;
-        const replyCountB = allComments.filter((c) => c.parent?.id === b.id).length;
+        const replyCountA = allComments.filter(
+          (c) => c.parent?.id === a.id
+        ).length;
+        const replyCountB = allComments.filter(
+          (c) => c.parent?.id === b.id
+        ).length;
         return replyCountB - replyCountA;
       });
-    } else if (filter === 'all') {
+    } else if (filter === "all") {
       // Default: newest first
       topLevelComments = [...topLevelComments].sort(
         (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
@@ -881,26 +947,29 @@ out center;`;
     // IMPORTANT: Include ALL replies (nested) for the paginated parent comments
     // This ensures frontend can display complete threads with all nested replies
     const parentIds = new Set(paginatedTopLevel.map((c) => c.id));
-    
+
     // Helper function to recursively find all replies for given parent IDs
-    const findAllRepliesRecursive = (parentCommentIds: Set<number>, depth = 0): IComment[] => {
+    const findAllRepliesRecursive = (
+      parentCommentIds: Set<number>,
+      depth = 0
+    ): IComment[] => {
       if (parentCommentIds.size === 0 || depth > 20) return []; // Prevent infinite recursion
-      
+
       const directReplies = allComments.filter(
         (c) => c.parent && parentCommentIds.has(c.parent.id)
       );
-      
+
       if (directReplies.length === 0) return [];
-      
+
       // Find replies to these replies (recursive)
       const replyIds = new Set(directReplies.map((c) => c.id));
       const nestedReplies = findAllRepliesRecursive(replyIds, depth + 1);
-      
+
       return [...directReplies, ...nestedReplies];
     };
-    
+
     const allReplies = findAllRepliesRecursive(parentIds);
-    
+
     // Combine paginated parents with ALL their nested replies
     const resultComments = [...paginatedTopLevel, ...allReplies];
 
@@ -990,8 +1059,10 @@ out center;`;
       tags: row.tags ?? undefined,
 
       avatar: row.avatar ?? undefined,
-      fuelTypes: ((row.fuelTypes ?? undefined) as unknown as FuelTypesDto | undefined),
-      prices: ((row.prices ?? undefined) as unknown as FuelPricesDto | undefined),
+      fuelTypes: (row.fuelTypes ?? undefined) as unknown as
+        | FuelTypesDto
+        | undefined,
+      prices: (row.prices ?? undefined) as unknown as FuelPricesDto | undefined,
       status: row.status ?? undefined,
       queueStatus: row.queueStatus ?? undefined,
       openingTime: row.openingTime ?? undefined,
@@ -1013,6 +1084,171 @@ out center;`;
       return undefined;
     }
     return { id: maybe.id, name: maybe.name };
+  }
+
+  // Station Update Request Methods
+
+  async createStationUpdateRequest(
+    dto: CreateStationUpdateRequestDto,
+    userId: number
+  ): Promise<StationUpdateRequestRes> {
+    const em = this.em.fork();
+
+    // Check if station exists
+    const station = await em.findOne(StationSchema, { id: dto.stationId });
+    if (!station) {
+      throw new NotFoundException(`Station with ID ${dto.stationId} not found`);
+    }
+
+    // Check if user exists
+    const user = await em.findOne(UserSchema, { id: userId });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    const updateRequest = new StationUpdateRequestSchema();
+    updateRequest.station = station;
+    updateRequest.requestedBy = user;
+    updateRequest.changes = dto.changes;
+    updateRequest.status = UpdateRequestStatus.PENDING;
+
+    await em.persistAndFlush(updateRequest);
+
+    return this.stationUpdateRequestToResponse(updateRequest);
+  }
+
+  async approveStationUpdateRequest(
+    requestId: number,
+    dto: UpdateStationUpdateRequestDto,
+    adminUserId: number
+  ): Promise<StationUpdateRequestRes> {
+    const em = this.em.fork();
+
+    const updateRequest = await em.findOne(
+      StationUpdateRequestSchema,
+      { id: requestId },
+      { populate: ["station", "requestedBy"] }
+    );
+
+    if (!updateRequest) {
+      throw new NotFoundException(
+        `Update request with ID ${requestId} not found`
+      );
+    }
+
+    if (updateRequest.status !== UpdateRequestStatus.PENDING) {
+      throw new BadRequestException(
+        `Update request is already ${updateRequest.status}`
+      );
+    }
+
+    const adminUser = await em.findOne(UserSchema, { id: adminUserId });
+    if (!adminUser) {
+      throw new NotFoundException(
+        `Admin user with ID ${adminUserId} not found`
+      );
+    }
+
+    // Update the station with the proposed changes
+    const station = updateRequest.station;
+    const changes = updateRequest.changes;
+
+    // Apply changes to station (only allowed fields)
+    if (changes.name !== undefined) station.name = changes.name;
+    if (changes.brand !== undefined) station.brand = changes.brand;
+    if (changes.lat !== undefined) station.lat = changes.lat;
+    if (changes.lng !== undefined) station.lng = changes.lng;
+    if (changes.village !== undefined) station.village = changes.village;
+    if (changes.avatar !== undefined) station.avatar = changes.avatar;
+    if (changes.fuelTypes !== undefined) station.fuelTypes = changes.fuelTypes;
+    if (changes.prices !== undefined) station.prices = changes.prices;
+    if (changes.status !== undefined) station.status = changes.status;
+    if (changes.queueStatus !== undefined)
+      station.queueStatus = changes.queueStatus;
+    if (changes.openingTime !== undefined)
+      station.openingTime = changes.openingTime;
+    if (changes.googleMapLink !== undefined)
+      station.googleMapLink = changes.googleMapLink;
+    if (changes.description !== undefined)
+      station.description = changes.description;
+    if (changes.adminNote !== undefined) station.adminNote = changes.adminNote;
+
+    // Update lastUpdatedBy
+    station.lastUpdatedBy = adminUser;
+
+    // Update the request status
+    updateRequest.status = dto.status;
+    updateRequest.adminNote = dto.adminNote;
+    updateRequest.reviewedBy = adminUser;
+    updateRequest.reviewedAt = new Date();
+
+    await em.persistAndFlush([station, updateRequest]);
+
+    return this.stationUpdateRequestToResponse(updateRequest);
+  }
+
+  async rejectStationUpdateRequest(
+    requestId: number,
+    dto: UpdateStationUpdateRequestDto,
+    adminUserId: number
+  ): Promise<StationUpdateRequestRes> {
+    const em = this.em.fork();
+
+    const updateRequest = await em.findOne(
+      StationUpdateRequestSchema,
+      { id: requestId },
+      { populate: ["station", "requestedBy"] }
+    );
+
+    if (!updateRequest) {
+      throw new NotFoundException(
+        `Update request with ID ${requestId} not found`
+      );
+    }
+
+    if (updateRequest.status !== UpdateRequestStatus.PENDING) {
+      throw new BadRequestException(
+        `Update request is already ${updateRequest.status}`
+      );
+    }
+
+    const adminUser = await em.findOne(UserSchema, { id: adminUserId });
+    if (!adminUser) {
+      throw new NotFoundException(
+        `Admin user with ID ${adminUserId} not found`
+      );
+    }
+
+    // Update the request status to rejected
+    updateRequest.status = dto.status;
+    updateRequest.adminNote = dto.adminNote;
+    updateRequest.reviewedBy = adminUser;
+    updateRequest.reviewedAt = new Date();
+
+    await em.persistAndFlush(updateRequest);
+
+    return this.stationUpdateRequestToResponse(updateRequest);
+  }
+
+  private stationUpdateRequestToResponse(
+    request: IStationUpdateRequest
+  ): StationUpdateRequestRes {
+    return {
+      id: request.id,
+      stationId: request.station.id,
+      requestedById: request.requestedBy.id,
+      requestedBy: this.toUserRef(request.requestedBy)!,
+      changes: request.changes,
+      status: request.status,
+      adminNote: request.adminNote ?? undefined,
+      reviewedById: request.reviewedBy?.id,
+      reviewedBy: request.reviewedBy
+        ? this.toUserRef(request.reviewedBy)
+        : undefined,
+      reviewedAt: request.reviewedAt,
+      createdAt: request.createdAt,
+      updatedAt: request.updatedAt,
+    };
   }
 
   private toUserRef(ref: unknown): UserRefDto | undefined {

@@ -22,6 +22,7 @@ import {
   CreateCommentDto,
   CreateStationFollowDto,
   CreateStationLikeDto,
+  CreateStationUpdateRequestDto,
   FuelPricesDto,
   FuelTypesDto,
   GetCommentsQueryDto,
@@ -29,8 +30,10 @@ import {
   NearbyStationsResDto,
   StationAdminRefDto,
   StationRes,
+  StationUpdateRequestRes,
   UserRefDto,
   UpdateStationDto,
+  UpdateStationUpdateRequestDto,
 } from "./station.dto";
 import { IStation } from "./station.entity";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
@@ -226,18 +229,73 @@ export class StationsController {
   }
 
   @Get(":id/comments")
-  @ApiOperation({ 
+  @ApiOperation({
     summary: "Get comments by station ID with filtering and pagination",
-    description: "Supports filters: all, my, newest, oldest, mostReply. Default: 30 comments per page."
+    description:
+      "Supports filters: all, my, newest, oldest, mostReply. Default: 30 comments per page.",
   })
-  @ApiQuery({ name: "filter", required: false, enum: ['all', 'my', 'newest', 'oldest', 'mostReply'], example: 'newest' })
+  @ApiQuery({
+    name: "filter",
+    required: false,
+    enum: ["all", "my", "newest", "oldest", "mostReply"],
+    example: "newest",
+  })
   @ApiQuery({ name: "page", required: false, example: 1 })
   @ApiQuery({ name: "limit", required: false, example: 30 })
   async getCommentsByStation(
     @Param("id", ParseIntPipe) stationId: number,
     @Query() query?: GetCommentsQueryDto
-  ): Promise<{ data: CommentRes[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    data: CommentRes[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     return this.stationsService.getCommentsByStation(stationId, query);
+  }
+
+  // Station Update Request Endpoints
+  @UseGuards(JwtAuthGuard)
+  @Post("update-requests")
+  @ApiOperation({ summary: "Create a station update request" })
+  async createStationUpdateRequest(
+    @Body() dto: CreateStationUpdateRequestDto,
+    @Request() req: { user?: { sub?: unknown; id?: unknown } }
+  ): Promise<StationUpdateRequestRes> {
+    const userId = this.extractUserId(req);
+    return this.stationsService.createStationUpdateRequest(dto, userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put("update-requests/:id/approve")
+  @ApiOperation({ summary: "Approve a station update request (admin only)" })
+  async approveStationUpdateRequest(
+    @Param("id", ParseIntPipe) requestId: number,
+    @Body() dto: UpdateStationUpdateRequestDto,
+    @Request() req: { user?: { sub?: unknown; id?: unknown } }
+  ): Promise<StationUpdateRequestRes> {
+    const adminUserId = this.extractUserId(req);
+    return this.stationsService.approveStationUpdateRequest(
+      requestId,
+      dto,
+      adminUserId
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put("update-requests/:id/reject")
+  @ApiOperation({ summary: "Reject a station update request (admin only)" })
+  async rejectStationUpdateRequest(
+    @Param("id", ParseIntPipe) requestId: number,
+    @Body() dto: UpdateStationUpdateRequestDto,
+    @Request() req: { user?: { sub?: unknown; id?: unknown } }
+  ): Promise<StationUpdateRequestRes> {
+    const adminUserId = this.extractUserId(req);
+    return this.stationsService.rejectStationUpdateRequest(
+      requestId,
+      dto,
+      adminUserId
+    );
   }
 
   stationRowToResponse(row: IStation): StationRes {
@@ -258,8 +316,10 @@ export class StationsController {
       tags: row.tags ?? undefined,
 
       avatar: row.avatar ?? undefined,
-      fuelTypes: ((row.fuelTypes ?? undefined) as unknown as FuelTypesDto | undefined),
-      prices: ((row.prices ?? undefined) as unknown as FuelPricesDto | undefined),
+      fuelTypes: (row.fuelTypes ?? undefined) as unknown as
+        | FuelTypesDto
+        | undefined,
+      prices: (row.prices ?? undefined) as unknown as FuelPricesDto | undefined,
       status: row.status ?? undefined,
       queueStatus: row.queueStatus ?? undefined,
       openingTime: row.openingTime ?? undefined,

@@ -38,8 +38,6 @@ import { Roles } from "../../auth/decorators/roles.decorator";
 @ApiTags("Locations — Sub-districts")
 @Controller("sub-districts")
 @ApiBearerAuth("JWT-auth")
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
 export class SubDistrictController {
   constructor(private readonly subDistrictService: SubDistrictService) {}
 
